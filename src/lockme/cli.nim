@@ -1,0 +1,112 @@
+import std/[parseutils, strutils]
+
+const Version* = "0.1.0"
+
+type
+  LogLevel* = enum
+    llError, llWarning, llInfo, llDebug
+
+  Options* = object
+    forkOnLock*: bool
+    readyFd*: int
+    hasReadyFd*: bool
+    ignoreEmptyPassword*: bool
+    initColor*: uint32
+    inputColor*: uint32
+    inputAltColor*: uint32
+    failColor*: uint32
+    logLevel*: LogLevel
+    checkProtocols*: bool
+    showHelp*: bool
+    showVersion*: bool
+
+const Usage* = """usage: lockme [options]
+
+  -h, --help                       Print this help message and exit.
+  --version                        Print the version number and exit.
+  --log-level <level>              Set log level: error, warning, info, debug.
+
+  --fork-on-lock                   Fork to the background after locking.
+  --ready-fd <fd>                  Write a newline to fd after locking.
+  --ignore-empty-password          Do not validate an empty password.
+  --check-protocols                Check required Wayland globals without locking.
+
+  --init-color 0xRRGGBB            Set the initial color.
+  --input-color 0xRRGGBB           Set the color used after input.
+  --input-alt-color 0xRRGGBB       Set the alternate input color.
+  --fail-color 0xRRGGBB            Set the auth failure color.
+"""
+
+proc defaultOptions*(): Options =
+  Options(
+    readyFd: -1,
+    initColor: 0x002b36'u32,
+    inputColor: 0x6c71c4'u32,
+    inputAltColor: 0x6c71c4'u32,
+    failColor: 0xdc322f'u32,
+    logLevel: llError
+  )
+
+proc parseColor*(raw: string): uint32 =
+  if raw.len != 8 or raw[0..1] != "0x":
+    raise newException(ValueError, "invalid color '" & raw & "', expected 0xRRGGBB")
+  var value: int
+  if parseHex(raw[2..^1], value) != 6:
+    raise newException(ValueError, "invalid color '" & raw & "', expected 0xRRGGBB")
+  result = uint32(value)
+
+proc parseLogLevel(raw: string): LogLevel =
+  case raw
+  of "error": llError
+  of "warning": llWarning
+  of "info": llInfo
+  of "debug": llDebug
+  else:
+    raise newException(ValueError, "invalid log level '" & raw & "'")
+
+proc needValue(args: seq[string]; i: int; opt: string): string =
+  if i + 1 >= args.len:
+    raise newException(ValueError, "missing value for " & opt)
+  args[i + 1]
+
+proc parseOptions*(args: seq[string]): Options =
+  result = defaultOptions()
+  var i = 0
+  while i < args.len:
+    let arg = args[i]
+    case arg
+    of "-h", "--help":
+      result.showHelp = true
+    of "--version":
+      result.showVersion = true
+    of "--fork-on-lock":
+      result.forkOnLock = true
+    of "--ignore-empty-password":
+      result.ignoreEmptyPassword = true
+    of "--check-protocols":
+      result.checkProtocols = true
+    of "--ready-fd":
+      let raw = needValue(args, i, arg)
+      result.readyFd = parseInt(raw)
+      result.hasReadyFd = true
+      inc i
+    of "--log-level":
+      result.logLevel = parseLogLevel(needValue(args, i, arg))
+      inc i
+    of "--init-color":
+      result.initColor = parseColor(needValue(args, i, arg))
+      inc i
+    of "--input-color":
+      let color = parseColor(needValue(args, i, arg))
+      result.inputColor = color
+      result.inputAltColor = color
+      inc i
+    of "--input-alt-color":
+      result.inputAltColor = parseColor(needValue(args, i, arg))
+      inc i
+    of "--fail-color":
+      result.failColor = parseColor(needValue(args, i, arg))
+      inc i
+    else:
+      raise newException(ValueError, "unknown option '" & arg & "'")
+    inc i

@@ -1,0 +1,7 @@
+/.codex
+/.nimcache/
+/nimcache/
+/nimclipboard/
+/lockme
+/tests/test_cli
+/tests/test_password
