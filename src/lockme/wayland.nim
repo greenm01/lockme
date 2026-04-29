@@ -91,9 +91,6 @@ type
   LockState = enum
     lsInitializing, lsLocking, lsLocked, lsExiting
 
-  InputMode = enum
-    imAccepting, imAuthenticating, imFailurePendingFlush
-
   Output = ref object
     lock: Lock
     name: uint32
@@ -116,7 +113,6 @@ type
   LockObj = object
     opts: Options
     state: LockState
-    inputMode: InputMode
     color: ColorState
     display: ptr WlDisplay
     compositor: ptr WlCompositor
@@ -418,14 +414,11 @@ proc keyboardModifiers(data: pointer; keyboard: ptr WlKeyboard; serial, modsDepr
 proc submitPassword(lock: Lock) =
   if lock.state != lsLocked:
     return
-  if lock.inputMode != imAccepting:
-    return
   if lock.opts.ignoreEmptyPassword and lock.password.len == 0:
     return
   if not sendPassword(lock.auth, lock.password.bytes):
     fatal("failed to send password to auth child")
   lock.password.clear()
-  lock.inputMode = imAuthenticating
 
 proc keyboardKey(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, state: uint32) {.cdecl.} =
   if state != WlKeyboardKeyStatePressed:
@@ -433,8 +426,6 @@ proc keyboardKey(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, sta
   let seat = cast[Seat](data)
   let lock = seat.lock
   if lock.state == lsExiting or seat.xkbState.isNil:
-    return
-  if lock.inputMode != imAccepting:
     return
 
   let keycode = key + 8
@@ -601,7 +592,6 @@ proc connectAndDiscover(opts: Options): Lock =
   result = Lock(
     opts: opts,
     state: lsInitializing,
-    inputMode: imAccepting,
     color: csInit,
     password: initPasswordBuffer()
   )
@@ -648,8 +638,6 @@ proc runLock*(opts: Options) =
   var pollfds: array[2, TPollfd]
   while lock.state != lsExiting:
     lock.flushAndPrepareRead()
-    if lock.inputMode == imFailurePendingFlush:
-      lock.inputMode = imAccepting
     pollfds[0] = TPollfd(fd: wl_display_get_fd(lock.display), events: POLLIN, revents: 0)
     pollfds[1] = TPollfd(fd: lock.auth.readFd, events: POLLIN, revents: 0)
     if poll(addr pollfds[0], Tnfds(pollfds.len), -1) < 0:
@@ -671,9 +659,7 @@ proc runLock*(opts: Options) =
         lock.sessionLock = nil
         lock.state = lsExiting
       else:
-        lock.password.clear()
         lock.setColor(csFail)
-        lock.inputMode = imFailurePendingFlush
     elif (pollfds[1].revents and (POLLHUP or POLLERR or POLLNVAL)) != 0:
       fatal("auth child exited unexpectedly")
 
