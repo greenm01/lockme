@@ -1,1 +1,24 @@
-auth include system-auth
+# Default lockme PAM stack: minimal, auditable, distribution-independent.
+#
+# This file contains an explicit auth chain of pam_unix (password check)
+# plus pam_faillock (bruteforce backoff). Faillock tunables (deny=,
+# unlock_time=, etc.) are inherited from /etc/security/faillock.conf.
+#
+# This is the right choice for users who authenticate with a plain Unix
+# password. It does NOT support:
+#   - systemd-homed (pam_systemd_home)
+#   - GNOME Keyring / KWallet auto-unlock
+#   - fingerprint readers (pam_fprintd)
+#   - smartcards / yubikeys (pam_pkcs11, pam_u2f)
+#   - any other auxiliary auth method configured in system-auth
+#
+# If you need any of the above, install pam.d/lockme.full instead, which
+# delegates to the distribution's system-auth chain. See the README's
+# "PAM stack" section for details.
+
+auth        required      pam_faillock.so preauth
+auth        required      pam_unix.so     nullok
+auth        [default=die] pam_faillock.so authfail
+auth        sufficient    pam_faillock.so authsucc
+
+account     required      pam_unix.so

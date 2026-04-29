@@ -18,13 +18,13 @@ task installBin, "Install the lockme binary to ~/.local/bin (builds if needed)":
   exec buildCommand
   exec "install -Dm755 lockme ~/.local/bin/lockme"
 
-task installPam, "Install the default PAM file (auth include system-auth)":
+task installPam, "Install the default PAM file (minimal: pam_unix + pam_faillock; no homed/keyring/fingerprint/smartcard)":
   exec "sudo install -m0644 pam.d/lockme /etc/pam.d/lockme"
 
-task installPamMinimal, "Install the minimal PAM file (pam_unix + pam_faillock; no homed/keyring/fingerprint/smartcard)":
-  exec "sudo install -m0644 pam.d/lockme.minimal /etc/pam.d/lockme"
+task installPamFull, "Install the full PAM file (auth include system-auth; enables homed, keyring, fingerprint, smartcard via system-auth)":
+  exec "sudo install -m0644 pam.d/lockme.full /etc/pam.d/lockme"
 
-task deploy, "Build release, install binary, and install default PAM config":
+task deploy, "Build release, install binary, and install default (minimal) PAM config":
   exec buildCommand
   exec "install -Dm755 lockme ~/.local/bin/lockme"
   exec "sudo install -m0644 pam.d/lockme /etc/pam.d/lockme"

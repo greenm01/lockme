@@ -1,0 +1,22 @@
+# Full PAM stack for lockme: delegates to the distribution's system-auth.
+#
+# This is an OPT-IN alternative to the default pam.d/lockme. It restores
+# the behavior most other screen lockers (waylock, swaylock, etc.) ship
+# with: authentication is delegated to /etc/pam.d/system-auth, so any
+# auxiliary auth method or session integration configured there also
+# applies to lockme. Specifically, this file enables:
+#   - systemd-homed (pam_systemd_home)
+#   - GNOME Keyring / KWallet auto-unlock
+#   - fingerprint readers (pam_fprintd)
+#   - smartcards / yubikeys (pam_pkcs11, pam_u2f)
+#   - any other module configured in system-auth
+#
+# The trade-off is that lockme inherits whatever risk surface system-auth
+# carries and cannot defend against misconfigurations there.
+#
+# To install:
+#   nimble installPamFull
+# or, without nimble:
+#   sudo install -m 0644 pam.d/lockme.full /etc/pam.d/lockme
+
+auth include system-auth
