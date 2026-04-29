@@ -96,10 +96,10 @@ locker continues with the password buffer's own `mlock` still active.
 `pam.d/lockme` is a minimal, auditable, distribution-independent chain:
 
 ```
-auth        required      pam_faillock.so preauth
-auth        required      pam_unix.so     nullok
-auth        [default=die] pam_faillock.so authfail
-auth        sufficient    pam_faillock.so authsucc
+auth        required                 pam_faillock.so preauth
+auth        [success=1 default=bad]  pam_unix.so     nullok
+auth        [default=die]            pam_faillock.so authfail
+auth        sufficient               pam_faillock.so authsucc
 account     required      pam_unix.so
 ```
 
