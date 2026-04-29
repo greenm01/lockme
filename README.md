@@ -5,6 +5,9 @@
 
 Tested and verified under the Niri Window Manager.
 
+For a security-focused comparison against `swaylock`, `waylock`, and
+`hyprlock`, see [compare.md](compare.md).
+
 ## Build
 
 ```sh
