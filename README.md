@@ -1,7 +1,7 @@
 # lockme
 
 `lockme` is a small Nim screen locker for Wayland compositors that support
-`ext-session-lock-v1`, with niri as the initial target.
+`ext-session-lock-v1`.
 
 ## Build
 
@@ -9,18 +9,27 @@
 nimble build
 ```
 
-## Check niri compatibility
+## Deploy
 
 ```sh
-./lockme --check-protocols
+nimble deploy
+```
+
+This builds an optimized release, installs `lockme` to `~/.local/bin/lockme`,
+and installs the PAM service file to `/etc/pam.d/lockme`. The binary install
+runs as your user; the PAM install uses `sudo` because `/etc/pam.d` is
+root-owned.
+
+## Check compositor compatibility
+
+```sh
+lockme --check-protocols
 ```
 
 ## Run
 
-Install `pam.d/lockme` to `/etc/pam.d/lockme`, then run:
-
 ```sh
-./lockme --ignore-empty-password
+lockme --ignore-empty-password
 ```
 
 The v1 UI follows waylock's minimal model: the lock surface is a solid color,
