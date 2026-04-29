@@ -200,7 +200,7 @@ proc viewportSetDestination(viewport: ptr WpViewport; width, height: int32) {.im
 
 proc xkb_context_new(flags: cint): ptr XkbContext {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc xkb_context_unref(context: ptr XkbContext) {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc xkb_keymap_new_from_string(context: ptr XkbContext; string: cstring; format, flags: cint): ptr XkbKeymap {.importc, header: "<xkbcommon/xkbcommon.h>".}
+proc xkb_keymap_new_from_buffer(context: ptr XkbContext; buffer: cstring; length: csize_t; format, flags: cint): ptr XkbKeymap {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc xkb_keymap_unref(keymap: ptr XkbKeymap) {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc xkb_state_new(keymap: ptr XkbKeymap): ptr XkbState {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc xkb_state_ref(state: ptr XkbState): ptr XkbState {.importc, header: "<xkbcommon/xkbcommon.h>".}
@@ -210,6 +210,18 @@ proc xkb_state_key_get_one_sym(state: ptr XkbState; keycode: uint32): uint32 {.i
 proc xkb_state_key_get_utf8(state: ptr XkbState; keycode: uint32; buffer: cstring; size: csize_t): cint {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc xkb_state_mod_name_is_active(state: ptr XkbState; name: cstring; kind: cint): cint {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc memfd_create(name: cstring; flags: cuint): cint {.importc, header: "<sys/mman.h>".}
+proc prctl(option: cint; arg2, arg3, arg4, arg5: culong): cint
+  {.importc, header: "<sys/prctl.h>", varargs.}
+proc explicit_bzero(p: pointer; n: csize_t) {.importc, header: "<string.h>".}
+proc mlockall(flags: cint): cint {.importc, header: "<sys/mman.h>".}
+proc setrlimit(resource: cint; rlim: ptr RLimit): cint {.importc, header: "<sys/resource.h>".}
+
+const
+  PrSetDumpable = 4.cint
+  PrSetNoNewPrivs = 38.cint
+  MclCurrent = 1.cint
+  MclFuture = 2.cint
+  RlimitCoreId = 4.cint  # Linux: RLIMIT_CORE
 
 var
   registryListener: WlRegistryListener
@@ -330,7 +342,9 @@ proc registryGlobal(data: pointer; registry: ptr WlRegistry; name: uint32; iface
     if lock.state in {lsLocking, lsLocked}:
       output.createOutputSurface()
   elif ifaceName == $ifaceNameWlSeat():
-    let seat = Seat(lock: lock, name: name, wlSeat: bindWlSeat(registry, name, version))
+    if version < 5:
+      fatal("wl_seat version 5 is required")
+    let seat = Seat(lock: lock, name: name, wlSeat: bindWlSeat(registry, name, 5))
     lock.seats.add(seat)
     discard wl_seat_add_listener(seat.wlSeat, cast[pointer](addr seatListener), cast[pointer](seat))
   elif ifaceName == $ifaceNameWlShm():
@@ -372,25 +386,23 @@ proc pointerIgnoreAxisDiscrete(data: pointer; pointer: ptr WlPointer; axis: uint
 proc pointerIgnoreAxisValue120(data: pointer; pointer: ptr WlPointer; axis: uint32; value120: int32) {.cdecl.} = discard
 proc pointerIgnoreAxisRelativeDirection(data: pointer; pointer: ptr WlPointer; axis, direction: uint32) {.cdecl.} = discard
 
-proc readFdAll(fd: cint; size: int): string =
-  result.setLen(size)
-  var offset = 0
-  while offset < size:
-    let rc = read(fd, addr result[offset], size - offset)
-    if rc <= 0:
-      result.setLen(offset)
-      return
-    offset += rc
+const KeymapSizeMax = 1024 * 1024  # 1 MiB sanity cap on compositor-supplied keymap
 
 proc keyboardKeymap(data: pointer; keyboard: ptr WlKeyboard; format: uint32; fd: int32; size: uint32) {.cdecl.} =
   let seat = cast[Seat](data)
   defer: discard close(fd)
   if format != uint32(XkbKeymapFormatTextV1):
     return
-  let keymapText = readFdAll(fd, int(size))
-  if keymapText.len == 0:
+  if size == 0 or size > uint32(KeymapSizeMax):
     return
-  let keymap = xkb_keymap_new_from_string(seat.lock.xkbContext, keymapText.cstring, XkbKeymapFormatTextV1, 0)
+  let mapped = mmap(nil, int(size), PROT_READ, MAP_PRIVATE, cint(fd), 0)
+  if mapped == cast[pointer](-1):
+    return
+  defer: discard munmap(mapped, int(size))
+  # The Wayland protocol guarantees a trailing NUL within the mapped region,
+  # so we pass `size - 1` as the length to xkb_keymap_new_from_buffer.
+  let length = csize_t(size) - 1
+  let keymap = xkb_keymap_new_from_buffer(seat.lock.xkbContext, cast[cstring](mapped), length, XkbKeymapFormatTextV1, 0)
   if keymap.isNil:
     return
   defer: xkb_keymap_unref(keymap)
@@ -416,7 +428,7 @@ proc submitPassword(lock: Lock) =
     return
   if lock.opts.ignoreEmptyPassword and lock.password.len == 0:
     return
-  if not sendPassword(lock.auth, lock.password.bytes):
+  if not sendPassword(lock.auth, lock.password.bytesPtr, lock.password.len):
     fatal("failed to send password to auth child")
   lock.password.clear()
 
@@ -445,23 +457,23 @@ proc keyboardKey(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, sta
       lock.password.clear()
       lock.setColor(csInit)
       return
-    var buffer = newString(64)
-    let written = xkb_state_key_get_utf8(seat.xkbState, keycode, buffer.cstring, csize_t(buffer.len))
-    if written > 0:
-      buffer.setLen(written)
-      if lock.password.appendUtf8(buffer):
+    var buffer: array[64, byte]
+    let written = xkb_state_key_get_utf8(seat.xkbState, keycode, cast[cstring](addr buffer[0]), csize_t(buffer.len))
+    if written > 0 and int(written) < buffer.len:
+      if lock.password.appendUtf8(buffer.toOpenArray(0, int(written) - 1)):
         case lock.color
         of csInit, csInputAlt, csFail: lock.setColor(csInput)
         of csInput: lock.setColor(csInputAlt)
+    explicit_bzero(addr buffer[0], csize_t(buffer.len))
   else:
-    var buffer = newString(64)
-    let written = xkb_state_key_get_utf8(seat.xkbState, keycode, buffer.cstring, csize_t(buffer.len))
-    if written > 0:
-      buffer.setLen(written)
-      if lock.password.appendUtf8(buffer):
+    var buffer: array[64, byte]
+    let written = xkb_state_key_get_utf8(seat.xkbState, keycode, cast[cstring](addr buffer[0]), csize_t(buffer.len))
+    if written > 0 and int(written) < buffer.len:
+      if lock.password.appendUtf8(buffer.toOpenArray(0, int(written) - 1)):
         case lock.color
         of csInit, csInputAlt, csFail: lock.setColor(csInput)
         of csInput: lock.setColor(csInputAlt)
+    explicit_bzero(addr buffer[0], csize_t(buffer.len))
 
 proc seatCapabilities(data: pointer; wlSeat: ptr WlSeat; capabilities: uint32) {.cdecl.} =
   let seat = cast[Seat](data)
@@ -482,6 +494,16 @@ proc seatCapabilities(data: pointer; wlSeat: ptr WlSeat; capabilities: uint32) {
       xkb_state_unref(seat.xkbState)
       seat.xkbState = nil
 
+proc redirectStdioToDevNull() =
+  let fd = open("/dev/null".cstring, O_RDWR)
+  if fd < 0:
+    return
+  discard dup2(fd, 0.cint)
+  discard dup2(fd, 1.cint)
+  discard dup2(fd, 2.cint)
+  if fd > 2:
+    discard close(fd)
+
 proc sessionLocked(data: pointer; sessionLock: ptr ExtSessionLock) {.cdecl.} =
   let lock = cast[Lock](data)
   lock.state = lsLocked
@@ -497,6 +519,11 @@ proc sessionLocked(data: pointer; sessionLock: ptr ExtSessionLock) {.cdecl.} =
       quit(0)
     discard setsid()
     discard chdir("/")
+    redirectStdioToDevNull()
+    # Re-apply mlock and MADV_DONTDUMP to the password buffer in the
+    # background process; both are inherited across fork on Linux but we
+    # re-apply defensively to match waylock's behavior.
+    lock.password.protectAfterFork()
 
 proc sessionFinished(data: pointer; sessionLock: ptr ExtSessionLock) {.cdecl.} =
   let lock = cast[Lock](data)
@@ -613,7 +640,29 @@ proc checkProtocols*(opts: Options) =
   lock.checkRequired()
   echo "lockme: required Wayland protocols are available"
 
+proc applyProcessHardening() =
+  ## Process-wide hardening applied at startup. Each step is best-effort:
+  ## a missing kernel feature must not stop the locker from running.
+  ##
+  ## - PR_SET_DUMPABLE=0: blocks ptrace and /proc snooping by other
+  ##   same-UID processes.
+  ## - PR_SET_NO_NEW_PRIVS=1: any future execve cannot gain privileges.
+  ## - RLIMIT_CORE=0: suppresses core dumps for the whole process.
+  ## - mlockall(MCL_CURRENT | MCL_FUTURE): locks all current and future
+  ##   pages into RAM so transient password material on the stack or in
+  ##   libc internals cannot be paged to swap.
+  discard prctl(PrSetDumpable, 0.culong, 0.culong, 0.culong, 0.culong)
+  discard prctl(PrSetNoNewPrivs, 1.culong, 0.culong, 0.culong, 0.culong)
+  var rl = RLimit(rlim_cur: 0, rlim_max: 0)
+  discard setrlimit(RlimitCoreId, addr rl)
+  # mlockall may fail with EPERM under low RLIMIT_MEMLOCK or in
+  # containers; the password buffer's own mlock is mandatory and handled
+  # separately, so a failure here only weakens defense-in-depth.
+  if mlockall(MclCurrent or MclFuture) != 0:
+    stderr.writeLine("lockme: warning: mlockall failed; transient password material may be paged to swap (raise RLIMIT_MEMLOCK)")
+
 proc runLock*(opts: Options) =
+  applyProcessHardening()
   initListeners()
   let lock = connectAndDiscover(opts)
   defer: lock.deinit()

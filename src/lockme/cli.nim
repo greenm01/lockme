@@ -28,7 +28,8 @@ const Usage* = """usage: lockme [options]
 
   --fork-on-lock                   Fork to the background after locking.
   --ready-fd <fd>                  Write a newline to fd after locking.
-  --ignore-empty-password          Do not validate an empty password.
+  --allow-empty-password           Submit empty passwords to PAM (default:
+                                   ignore Enter on empty buffer).
   --check-protocols                Check required Wayland globals without locking.
 
   --init-color 0xRRGGBB            Set the initial color.
@@ -40,6 +41,7 @@ const Usage* = """usage: lockme [options]
 proc defaultOptions*(): Options =
   Options(
     readyFd: -1,
+    ignoreEmptyPassword: true,
     initColor: 0x002b36'u32,
     inputColor: 0x6c71c4'u32,
     inputAltColor: 0x2aa198'u32,
@@ -83,11 +85,16 @@ proc parseOptions*(args: seq[string]): Options =
       result.forkOnLock = true
     of "--ignore-empty-password":
       result.ignoreEmptyPassword = true
+    of "--allow-empty-password":
+      result.ignoreEmptyPassword = false
     of "--check-protocols":
       result.checkProtocols = true
     of "--ready-fd":
       let raw = needValue(args, i, arg)
-      result.readyFd = parseInt(raw)
+      let fd = parseInt(raw)
+      if fd < 0 or fd > int(high(cint)):
+        raise newException(ValueError, "invalid --ready-fd value '" & raw & "'")
+      result.readyFd = fd
       result.hasReadyFd = true
       inc i
     of "--log-level":
