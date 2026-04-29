@@ -86,3 +86,48 @@ systemd default of `8M` is more than sufficient for both the password
 buffer's `mlock` and the process-wide `mlockall`. If `mlockall` fails
 (for example in restrictive containers) a warning is printed but the
 locker continues with the password buffer's own `mlock` still active.
+
+## PAM stack
+
+`lockme` performs authentication through PAM. The shipped `pam.d/lockme`
+contains a single line:
+
+```
+auth include system-auth
+```
+
+This is the same approach `waylock` and most other screen lockers take:
+authentication is delegated to the distribution's `system-auth` chain so
+that fingerprint readers, smartcards, `pam_systemd_home`, GNOME Keyring
+auto-unlock, and similar integrations work out of the box.
+
+The trade-off is that `lockme`'s effective auth surface is whatever
+`system-auth` says it is. To audit your screen-lock auth path, audit
+`/etc/pam.d/system-auth`. Edits to `system-auth` (for example a
+debugging `auth sufficient pam_permit.so` line, or a `pam_succeed_if`
+clause that bypasses checks for users in a particular group) silently
+affect `lockme` as well; `lockme` cannot detect or defend against this.
+
+For users who want a smaller, distribution-independent auth surface,
+`pam.d/lockme.minimal` is provided as an opt-in alternative. It replaces
+the `system-auth` inheritance with an explicit chain of `pam_unix` plus
+`pam_faillock` (with tunables inherited from
+`/etc/security/faillock.conf`):
+
+```sh
+nimble installPamMinimal
+# or, without nimble:
+sudo install -m 0644 pam.d/lockme.minimal /etc/pam.d/lockme
+```
+
+To revert to the default chain at any time:
+
+```sh
+nimble installPam
+```
+
+The minimal file does NOT support `pam_systemd_home`, GNOME Keyring or
+KWallet auto-unlock, fingerprint readers, smartcards, or any other
+auxiliary auth method configured in `system-auth`. Use it only if you
+authenticate with a Unix password and want the smallest auditable
+surface.

@@ -14,7 +14,17 @@ const buildCommand = "nim c -d:release --out:lockme src/lockme.nim"
 task build, "Build lockme":
   exec buildCommand
 
-task deploy, "Build release, install binary, and install PAM config":
+task installBin, "Install the lockme binary to ~/.local/bin (builds if needed)":
+  exec buildCommand
+  exec "install -Dm755 lockme ~/.local/bin/lockme"
+
+task installPam, "Install the default PAM file (auth include system-auth)":
+  exec "sudo install -m0644 pam.d/lockme /etc/pam.d/lockme"
+
+task installPamMinimal, "Install the minimal PAM file (pam_unix + pam_faillock; no homed/keyring/fingerprint/smartcard)":
+  exec "sudo install -m0644 pam.d/lockme.minimal /etc/pam.d/lockme"
+
+task deploy, "Build release, install binary, and install default PAM config":
   exec buildCommand
   exec "install -Dm755 lockme ~/.local/bin/lockme"
   exec "sudo install -m0644 pam.d/lockme /etc/pam.d/lockme"
