@@ -7,7 +7,7 @@ suite "cli":
     let opts = parseOptions(@[])
     check opts.initColor == 0x002b36'u32
     check opts.inputColor == 0x6c71c4'u32
-    check opts.inputAltColor == 0x6c71c4'u32
+    check opts.inputAltColor == 0x2aa198'u32
     check opts.failColor == 0xdc322f'u32
 
   test "parse colors":

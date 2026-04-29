@@ -42,7 +42,7 @@ proc defaultOptions*(): Options =
     readyFd: -1,
     initColor: 0x002b36'u32,
     inputColor: 0x6c71c4'u32,
-    inputAltColor: 0x6c71c4'u32,
+    inputAltColor: 0x2aa198'u32,
     failColor: 0xdc322f'u32,
     logLevel: llError
   )

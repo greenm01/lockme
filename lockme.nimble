@@ -13,5 +13,5 @@ task build, "Build lockme":
   exec "nim c -d:release --out:lockme src/lockme.nim"
 
 task test, "Run unit tests":
-  exec "nim c -r tests/test_password.nim"
-  exec "nim c -r tests/test_cli.nim"
+  exec "nim c -r --path:src tests/test_password.nim"
+  exec "nim c -r --path:src tests/test_cli.nim"

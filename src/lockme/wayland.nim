@@ -92,7 +92,7 @@ type
     lsInitializing, lsLocking, lsLocked, lsExiting
 
   Output = ref object
-    lock: ptr Lock
+    lock: Lock
     name: uint32
     wlOutput: ptr WlOutput
     surface: ptr WlSurface
@@ -103,14 +103,14 @@ type
     height: int32
 
   Seat = ref object
-    lock: ptr Lock
+    lock: Lock
     name: uint32
     wlSeat: ptr WlSeat
     pointer: ptr WlPointer
     keyboard: ptr WlKeyboard
     xkbState: ptr XkbState
 
-  Lock = object
+  LockObj = object
     opts: Options
     state: LockState
     color: ColorState
@@ -128,6 +128,8 @@ type
     xkbContext: ptr XkbContext
     password: PasswordBuffer
     auth: AuthConnection
+
+  Lock = ref LockObj
 
 proc wl_display_connect(name: cstring): ptr WlDisplay {.importc, header: "<wayland-client.h>".}
 proc wl_display_disconnect(display: ptr WlDisplay) {.importc, header: "<wayland-client.h>".}
@@ -198,7 +200,7 @@ proc viewportSetDestination(viewport: ptr WpViewport; width, height: int32) {.im
 
 proc xkb_context_new(flags: cint): ptr XkbContext {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc xkb_context_unref(context: ptr XkbContext) {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc xkb_keymap_new_from_buffer(context: ptr XkbContext; buffer: cstring; length: csize_t; format, flags: cint): ptr XkbKeymap {.importc, header: "<xkbcommon/xkbcommon.h>".}
+proc xkb_keymap_new_from_string(context: ptr XkbContext; string: cstring; format, flags: cint): ptr XkbKeymap {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc xkb_keymap_unref(keymap: ptr XkbKeymap) {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc xkb_state_new(keymap: ptr XkbKeymap): ptr XkbState {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc xkb_state_ref(state: ptr XkbState): ptr XkbState {.importc, header: "<xkbcommon/xkbcommon.h>".}
@@ -224,7 +226,7 @@ proc rgba16(value: uint32; shift: int): uint32 =
   let component = (value shr shift) and 0xff'u32
   component * (0xffffffff'u32 div 0xff'u32)
 
-proc colorValue(lock: ptr Lock; color: ColorState): uint32 =
+proc colorValue(lock: Lock; color: ColorState): uint32 =
   case color
   of csInit: lock.opts.initColor
   of csInput: lock.opts.inputColor
@@ -239,7 +241,7 @@ proc attachBuffer(output: Output; buffer: ptr WlBuffer) =
   viewportSetDestination(output.viewport, output.width, output.height)
   wlSurfaceCommit(output.surface)
 
-proc setColor(lock: ptr Lock; color: ColorState) =
+proc setColor(lock: Lock; color: ColorState) =
   if lock.color == color:
     return
   lock.color = color
@@ -279,7 +281,7 @@ proc destroySeat(seat: Seat) =
   if not seat.wlSeat.isNil:
     wlSeatRelease(seat.wlSeat)
 
-proc createBuffers(lock: ptr Lock) =
+proc createBuffers(lock: Lock) =
   for color in ColorState:
     let rgb = lock.colorValue(color)
     if not lock.pixelManager.isNil:
@@ -313,7 +315,7 @@ proc createBuffers(lock: ptr Lock) =
       fatal("failed to create color buffer")
 
 proc registryGlobal(data: pointer; registry: ptr WlRegistry; name: uint32; iface: cstring; version: uint32) {.cdecl.} =
-  let lock = cast[ptr Lock](data)
+  let lock = cast[Lock](data)
   let ifaceName = $iface
 
   if ifaceName == $ifaceNameWlCompositor():
@@ -328,9 +330,7 @@ proc registryGlobal(data: pointer; registry: ptr WlRegistry; name: uint32; iface
     if lock.state in {lsLocking, lsLocked}:
       output.createOutputSurface()
   elif ifaceName == $ifaceNameWlSeat():
-    if version < 5:
-      fatal("wl_seat version 5 is required")
-    let seat = Seat(lock: lock, name: name, wlSeat: bindWlSeat(registry, name, 5))
+    let seat = Seat(lock: lock, name: name, wlSeat: bindWlSeat(registry, name, version))
     lock.seats.add(seat)
     discard wl_seat_add_listener(seat.wlSeat, cast[pointer](addr seatListener), cast[pointer](seat))
   elif ifaceName == $ifaceNameWlShm():
@@ -343,7 +343,7 @@ proc registryGlobal(data: pointer; registry: ptr WlRegistry; name: uint32; iface
     lock.pixelManager = bindPixelManager(registry, name, 1)
 
 proc registryGlobalRemove(data: pointer; registry: ptr WlRegistry; name: uint32) {.cdecl.} =
-  let lock = cast[ptr Lock](data)
+  let lock = cast[Lock](data)
   for i, output in lock.outputs:
     if output.name == name:
       output.destroyOutput()
@@ -390,7 +390,7 @@ proc keyboardKeymap(data: pointer; keyboard: ptr WlKeyboard; format: uint32; fd:
   let keymapText = readFdAll(fd, int(size))
   if keymapText.len == 0:
     return
-  let keymap = xkb_keymap_new_from_buffer(seat.lock.xkbContext, keymapText.cstring, csize_t(max(0, keymapText.len - 1)), XkbKeymapFormatTextV1, 0)
+  let keymap = xkb_keymap_new_from_string(seat.lock.xkbContext, keymapText.cstring, XkbKeymapFormatTextV1, 0)
   if keymap.isNil:
     return
   defer: xkb_keymap_unref(keymap)
@@ -411,7 +411,7 @@ proc keyboardModifiers(data: pointer; keyboard: ptr WlKeyboard; serial, modsDepr
   if not seat.xkbState.isNil:
     discard xkb_state_update_mask(seat.xkbState, modsDepressed, modsLatched, modsLocked, 0, 0, group)
 
-proc submitPassword(lock: ptr Lock) =
+proc submitPassword(lock: Lock) =
   if lock.state != lsLocked:
     return
   if lock.opts.ignoreEmptyPassword and lock.password.len == 0:
@@ -483,7 +483,7 @@ proc seatCapabilities(data: pointer; wlSeat: ptr WlSeat; capabilities: uint32) {
       seat.xkbState = nil
 
 proc sessionLocked(data: pointer; sessionLock: ptr ExtSessionLock) {.cdecl.} =
-  let lock = cast[ptr Lock](data)
+  let lock = cast[Lock](data)
   lock.state = lsLocked
   if lock.opts.hasReadyFd:
     discard write(lock.opts.readyFd.cint, "\n".cstring, 1)
@@ -499,7 +499,7 @@ proc sessionLocked(data: pointer; sessionLock: ptr ExtSessionLock) {.cdecl.} =
     discard chdir("/")
 
 proc sessionFinished(data: pointer; sessionLock: ptr ExtSessionLock) {.cdecl.} =
-  let lock = cast[ptr Lock](data)
+  let lock = cast[Lock](data)
   if lock.state == lsLocking:
     fatal("compositor denied session lock; another locker may already be running")
   lock.state = lsExiting
@@ -512,7 +512,7 @@ proc lockSurfaceConfigure(data: pointer; surface: ptr ExtSessionLockSurface; ser
   lockSurfaceAckConfigure(surface, serial)
   output.attachBuffer(output.lock.buffers[output.lock.color])
 
-proc flushAndPrepareRead(lock: ptr Lock) =
+proc flushAndPrepareRead(lock: Lock) =
   while wl_display_prepare_read(lock.display) != 0:
     if wl_display_dispatch_pending(lock.display) < 0:
       fatal("failed to dispatch Wayland events")
@@ -527,7 +527,7 @@ proc flushAndPrepareRead(lock: ptr Lock) =
       discard wl_display_read_events(lock.display)
       fatal("failed to flush Wayland connection")
 
-proc checkRequired(lock: ptr Lock) =
+proc checkRequired(lock: Lock) =
   if lock.compositor.isNil: fatal("wl_compositor not advertised")
   if lock.lockManager.isNil: fatal("ext_session_lock_manager_v1 not advertised")
   if lock.viewporter.isNil: fatal("wp_viewporter not advertised")
@@ -560,7 +560,7 @@ proc initListeners() =
   sessionLockListener = ExtSessionLockListener(locked: sessionLocked, finished: sessionFinished)
   lockSurfaceListener = ExtSessionLockSurfaceListener(configure: lockSurfaceConfigure)
 
-proc deinit(lock: var Lock) =
+proc deinit(lock: Lock) =
   for output in lock.outputs:
     output.destroyOutput()
   for seat in lock.seats:
@@ -602,24 +602,24 @@ proc connectAndDiscover(opts: Options): Lock =
   if result.xkbContext.isNil:
     fatal("failed to create xkb context")
   result.registry = wl_display_get_registry(result.display)
-  discard wl_registry_add_listener(result.registry, cast[pointer](addr registryListener), addr result)
+  discard wl_registry_add_listener(result.registry, cast[pointer](addr registryListener), cast[pointer](result))
   if wl_display_roundtrip(result.display) < 0:
     fatal("initial Wayland roundtrip failed")
 
 proc checkProtocols*(opts: Options) =
   initListeners()
-  var lock = connectAndDiscover(opts)
+  let lock = connectAndDiscover(opts)
   defer: lock.deinit()
-  (addr lock).checkRequired()
+  lock.checkRequired()
   echo "lockme: required Wayland protocols are available"
 
 proc runLock*(opts: Options) =
   initListeners()
-  var lock = connectAndDiscover(opts)
+  let lock = connectAndDiscover(opts)
   defer: lock.deinit()
-  (addr lock).checkRequired()
+  lock.checkRequired()
   lock.auth = forkAuthChild()
-  (addr lock).createBuffers()
+  lock.createBuffers()
   if not lock.pixelManager.isNil:
     pixelManagerDestroy(lock.pixelManager)
     lock.pixelManager = nil
@@ -627,7 +627,7 @@ proc runLock*(opts: Options) =
   lock.sessionLock = lockManagerLock(lock.lockManager)
   if lock.sessionLock.isNil:
     fatal("failed to create session lock")
-  discard ext_session_lock_v1_add_listener(lock.sessionLock, cast[pointer](addr sessionLockListener), addr lock)
+  discard ext_session_lock_v1_add_listener(lock.sessionLock, cast[pointer](addr sessionLockListener), cast[pointer](lock))
   lockManagerDestroy(lock.lockManager)
   lock.lockManager = nil
   lock.state = lsLocking
@@ -637,7 +637,7 @@ proc runLock*(opts: Options) =
 
   var pollfds: array[2, TPollfd]
   while lock.state != lsExiting:
-    (addr lock).flushAndPrepareRead()
+    lock.flushAndPrepareRead()
     pollfds[0] = TPollfd(fd: wl_display_get_fd(lock.display), events: POLLIN, revents: 0)
     pollfds[1] = TPollfd(fd: lock.auth.readFd, events: POLLIN, revents: 0)
     if poll(addr pollfds[0], Tnfds(pollfds.len), -1) < 0:
@@ -646,6 +646,7 @@ proc runLock*(opts: Options) =
     if (pollfds[0].revents and POLLIN) != 0:
       if wl_display_read_events(lock.display) < 0:
         fatal("failed to read Wayland events")
+      while wl_display_dispatch_pending(lock.display) > 0: discard
     else:
       wl_display_cancel_read(lock.display)
 
@@ -658,7 +659,7 @@ proc runLock*(opts: Options) =
         lock.sessionLock = nil
         lock.state = lsExiting
       else:
-        (addr lock).setColor(csFail)
+        lock.setColor(csFail)
     elif (pollfds[1].revents and (POLLHUP or POLLERR or POLLNVAL)) != 0:
       fatal("auth child exited unexpectedly")
 
