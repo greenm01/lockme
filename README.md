@@ -1,10 +1,14 @@
 # lockme
 
-`lockme` is a small Nim screen locker for Wayland compositors that support
+`lockme` is a small screen locker for Wayland compositors that support
 `ext-session-lock-v1`.
 
 For a security-focused comparison against `swaylock`, `waylock`, and
 `hyprlock`, see [compare.md](compare.md).
+
+## Why
+
+I was missing waylock on Niri and decided to create a new one from scratch. In Nim of course!
 
 ## Build
 
