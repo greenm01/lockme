@@ -2,7 +2,7 @@
 
 *April 29, 2026*
 
-A side-by-side look at four Wayland screen lockers, written for the one
+A side-by-side look at four Wayland screen lockers, written for the user
 who has to pick one and live with it.
 
 ## The contestants
