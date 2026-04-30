@@ -5,10 +5,14 @@ import lockme/cli
 suite "cli":
   test "default colors":
     let opts = parseOptions(@[])
-    check opts.initColor == 0x002b36'u32
-    check opts.inputColor == 0x6c71c4'u32
-    check opts.inputAltColor == 0x2aa198'u32
-    check opts.failColor == 0xdc322f'u32
+    check opts.initColor == 0x141e25'u32
+    check opts.inputColor == 0x202845'u32
+    check opts.inputAltColor == 0x1b3734'u32
+    check opts.failColor == 0x3c171f'u32
+
+  test "customColors defaults to false":
+    let opts = parseOptions(@[])
+    check not opts.customColors
 
   test "ignoreEmptyPassword defaults to true":
     let opts = parseOptions(@[])
@@ -35,6 +39,13 @@ suite "cli":
     check opts.initColor == 0x112233'u32
     check opts.inputColor == 0x445566'u32
     check opts.inputAltColor == 0x778899'u32
+    check opts.customColors
+
+  test "--input-color sets alternate input color":
+    let opts = parseOptions(@["--input-color", "0x445566"])
+    check opts.inputColor == 0x445566'u32
+    check opts.inputAltColor == 0x445566'u32
+    check opts.customColors
 
   test "reject bad color":
     expect ValueError:

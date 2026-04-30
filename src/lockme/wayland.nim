@@ -222,6 +222,8 @@ const
   MclCurrent = 1.cint
   MclFuture = 2.cint
   RlimitCoreId = 4.cint  # Linux: RLIMIT_CORE
+  WlShmFormatXrgb8888 = 1'u32
+  GradientSize = 256
 
 var
   registryListener: WlRegistryListener
@@ -244,6 +246,30 @@ proc colorValue(lock: Lock; color: ColorState): uint32 =
   of csInput: lock.opts.inputColor
   of csInputAlt: lock.opts.inputAltColor
   of csFail: lock.opts.failColor
+
+proc gradientStart(color: ColorState): uint32 =
+  case color
+  of csInit: 0x0b0f14'u32
+  of csInput: 0x121625'u32
+  of csInputAlt: 0x0f1c1b'u32
+  of csFail: 0x1f1014'u32
+
+proc gradientEnd(color: ColorState): uint32 =
+  case color
+  of csInit: 0x1e2d36'u32
+  of csInput: 0x2d3a66'u32
+  of csInputAlt: 0x28534d'u32
+  of csFail: 0x5a1f2a'u32
+
+proc lerpChannel(a, b: uint32; shift, t, denom: int): uint32 =
+  let av = int((a shr shift) and 0xff'u32)
+  let bv = int((b shr shift) and 0xff'u32)
+  uint32((av * (denom - t) + bv * t) div denom)
+
+proc lerpRgb(a, b: uint32; t, denom: int): uint32 =
+  (lerpChannel(a, b, 16, t, denom) shl 16) or
+    (lerpChannel(a, b, 8, t, denom) shl 8) or
+    lerpChannel(a, b, 0, t, denom)
 
 proc attachBuffer(output: Output; buffer: ptr WlBuffer) =
   if not output.configured or output.surface.isNil:
@@ -293,36 +319,80 @@ proc destroySeat(seat: Seat) =
   if not seat.wlSeat.isNil:
     wlSeatRelease(seat.wlSeat)
 
+proc createSolidPixelBuffer(lock: Lock; rgb: uint32): ptr WlBuffer =
+  pixelCreateBuffer(
+    lock.pixelManager,
+    rgba16(rgb, 16),
+    rgba16(rgb, 8),
+    rgba16(rgb, 0),
+    0xffffffff'u32
+  )
+
+proc createSolidShmBuffer(lock: Lock; rgb: uint32): ptr WlBuffer =
+  let fd = memfd_create("lockme-color".cstring, 0)
+  if fd < 0:
+    fatal("failed to create shm buffer fd")
+  if ftruncate(fd, 4) != 0:
+    discard close(fd)
+    fatal("failed to size shm buffer fd")
+  let mapped = mmap(nil, 4, PROT_READ or PROT_WRITE, MAP_SHARED, fd, 0)
+  if mapped == cast[pointer](-1):
+    discard close(fd)
+    fatal("failed to map shm buffer")
+  cast[ptr uint32](mapped)[] = 0xff000000'u32 or rgb
+  discard munmap(mapped, 4)
+  let pool = wlShmCreatePool(lock.shm, fd, 4)
+  discard close(fd)
+  if pool.isNil:
+    fatal("failed to create wl_shm pool")
+  result = wlShmPoolCreateBuffer(pool, 0, 1, 1, 4, WlShmFormatXrgb8888)
+  wlShmPoolDestroy(pool)
+
+proc createGradientShmBuffer(lock: Lock; color: ColorState): ptr WlBuffer =
+  let width = GradientSize
+  let height = GradientSize
+  let stride = width * 4
+  let size = stride * height
+  let fd = memfd_create("lockme-gradient".cstring, 0)
+  if fd < 0:
+    fatal("failed to create gradient shm buffer fd")
+  if ftruncate(fd, size) != 0:
+    discard close(fd)
+    fatal("failed to size gradient shm buffer fd")
+  let mapped = mmap(nil, size, PROT_READ or PROT_WRITE, MAP_SHARED, fd, 0)
+  if mapped == cast[pointer](-1):
+    discard close(fd)
+    fatal("failed to map gradient shm buffer")
+
+  let pixels = cast[ptr UncheckedArray[uint32]](mapped)
+  let startRgb = gradientStart(color)
+  let endRgb = gradientEnd(color)
+  let denom = (width - 1) + (height - 1)
+  for y in 0 ..< height:
+    for x in 0 ..< width:
+      let rgb = lerpRgb(startRgb, endRgb, x + y, denom)
+      pixels[y * width + x] = 0xff000000'u32 or rgb
+
+  discard munmap(mapped, size)
+  let pool = wlShmCreatePool(lock.shm, fd, int32(size))
+  discard close(fd)
+  if pool.isNil:
+    fatal("failed to create gradient wl_shm pool")
+  result = wlShmPoolCreateBuffer(pool, 0, int32(width), int32(height), int32(stride), WlShmFormatXrgb8888)
+  wlShmPoolDestroy(pool)
+
+proc createBuffer(lock: Lock; color: ColorState): ptr WlBuffer =
+  if not lock.opts.customColors and not lock.shm.isNil:
+    return lock.createGradientShmBuffer(color)
+
+  let rgb = lock.colorValue(color)
+  if not lock.pixelManager.isNil:
+    return lock.createSolidPixelBuffer(rgb)
+  lock.createSolidShmBuffer(rgb)
+
 proc createBuffers(lock: Lock) =
   for color in ColorState:
-    let rgb = lock.colorValue(color)
-    if not lock.pixelManager.isNil:
-      lock.buffers[color] = pixelCreateBuffer(
-        lock.pixelManager,
-        rgba16(rgb, 16),
-        rgba16(rgb, 8),
-        rgba16(rgb, 0),
-        0xffffffff'u32
-      )
-    else:
-      let fd = memfd_create("lockme-color".cstring, 0)
-      if fd < 0:
-        fatal("failed to create shm buffer fd")
-      if ftruncate(fd, 4) != 0:
-        discard close(fd)
-        fatal("failed to size shm buffer fd")
-      let mapped = mmap(nil, 4, PROT_READ or PROT_WRITE, MAP_SHARED, fd, 0)
-      if mapped == cast[pointer](-1):
-        discard close(fd)
-        fatal("failed to map shm buffer")
-      cast[ptr uint32](mapped)[] = 0xff000000'u32 or rgb
-      discard munmap(mapped, 4)
-      let pool = wlShmCreatePool(lock.shm, fd, 4)
-      discard close(fd)
-      if pool.isNil:
-        fatal("failed to create wl_shm pool")
-      lock.buffers[color] = wlShmPoolCreateBuffer(pool, 0, 1, 1, 4, 1'u32)
-      wlShmPoolDestroy(pool)
+    lock.buffers[color] = lock.createBuffer(color)
     if lock.buffers[color].isNil:
       fatal("failed to create color buffer")
 

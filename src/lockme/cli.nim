@@ -12,6 +12,7 @@ type
     hasReadyFd*: bool
     ignoreEmptyPassword*: bool
     devMode*: bool
+    customColors*: bool
     initColor*: uint32
     inputColor*: uint32
     inputAltColor*: uint32
@@ -35,20 +36,20 @@ const Usage* = """usage: lockme [options]
                                    exits without PAM authentication.
   --check-protocols                Check required Wayland globals without locking.
 
-  --init-color 0xRRGGBB            Set the initial color.
-  --input-color 0xRRGGBB           Set the color used after input.
-  --input-alt-color 0xRRGGBB       Set the alternate input color.
-  --fail-color 0xRRGGBB            Set the auth failure color.
+  --init-color 0xRRGGBB            Set a solid initial color.
+  --input-color 0xRRGGBB           Set a solid color used after input.
+  --input-alt-color 0xRRGGBB       Set a solid alternate input color.
+  --fail-color 0xRRGGBB            Set a solid auth failure color.
 """
 
 proc defaultOptions*(): Options =
   Options(
     readyFd: -1,
     ignoreEmptyPassword: true,
-    initColor: 0x002b36'u32,
-    inputColor: 0x6c71c4'u32,
-    inputAltColor: 0x2aa198'u32,
-    failColor: 0xdc322f'u32,
+    initColor: 0x141e25'u32,
+    inputColor: 0x202845'u32,
+    inputAltColor: 0x1b3734'u32,
+    failColor: 0x3c171f'u32,
     logLevel: llError
   )
 
@@ -107,17 +108,21 @@ proc parseOptions*(args: seq[string]): Options =
       inc i
     of "--init-color":
       result.initColor = parseColor(needValue(args, i, arg))
+      result.customColors = true
       inc i
     of "--input-color":
       let color = parseColor(needValue(args, i, arg))
       result.inputColor = color
       result.inputAltColor = color
+      result.customColors = true
       inc i
     of "--input-alt-color":
       result.inputAltColor = parseColor(needValue(args, i, arg))
+      result.customColors = true
       inc i
     of "--fail-color":
       result.failColor = parseColor(needValue(args, i, arg))
+      result.customColors = true
       inc i
     else:
       raise newException(ValueError, "unknown option '" & arg & "'")

@@ -3,8 +3,6 @@
 `lockme` is a small Nim screen locker for Wayland compositors that support
 `ext-session-lock-v1`.
 
-Tested and verified under the Niri Window Manager.
-
 For a security-focused comparison against `swaylock`, `waylock`, and
 `hyprlock`, see [compare.md](compare.md).
 
@@ -46,9 +44,11 @@ without talking to PAM. This is intentionally insecure and should not be used
 for a real screen lock, but it provides a compositor-safe escape hatch while
 testing lockme itself.
 
-The v1 UI follows waylock's minimal model: the lock surface is a solid color,
-typing changes the color, and failed authentication changes it to the failure
-color.
+The v1 UI follows waylock's minimal model: the lock surface is a subtle
+gradient, typing changes the gradient, and failed authentication changes it
+to the failure gradient. The `--init-color`, `--input-color`,
+`--input-alt-color`, and `--fail-color` flags switch the UI back to exact
+solid colors for all states.
 
 ## Platform requirements
 
