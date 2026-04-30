@@ -29,7 +29,7 @@ agreement ends.
 | `madvise(MADV_DONTDUMP)`           | no       | yes     | no       | yes |
 | Non-elidable secure zero           | volatile loop | `secureZero` | `string = ""` (unsafe) | `explicit_bzero` |
 | `prctl(PR_SET_DUMPABLE, 0)`        | no       | no      | no       | yes (parent + child) |
-| `prctl(PR_SET_NO_NEW_PRIVS, 1)`    | no       | no      | no       | yes |
+| `prctl(PR_SET_NO_NEW_PRIVS, 1)`    | no       | no      | no       | yes (parent after auth fork) |
 | `setrlimit(RLIMIT_CORE, 0)`        | no       | no      | no       | yes |
 | `mlockall(MCL_CURRENT|MCL_FUTURE)` | no       | no      | no       | yes (best effort) |
 | `close_range` in auth child        | no       | no      | n/a      | yes (with fallback) |
@@ -122,7 +122,8 @@ zeros the popped bytes specifically, not just the whole buffer.
 The process model adds the syscalls waylock left out:
 
 - `prctl(PR_SET_DUMPABLE, 0)` in both parent and auth child.
-- `prctl(PR_SET_NO_NEW_PRIVS, 1)` on the parent.
+- `prctl(PR_SET_NO_NEW_PRIVS, 1)` on the parent after the auth child is
+  forked, leaving PAM helpers such as `unix_chkpwd` usable.
 - `setrlimit(RLIMIT_CORE, 0)` to suppress core dumps.
 - `mlockall(MCL_CURRENT | MCL_FUTURE)` best-effort, with a clear
   warning if `RLIMIT_MEMLOCK` is too low.

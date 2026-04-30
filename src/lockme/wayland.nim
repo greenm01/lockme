@@ -432,6 +432,14 @@ proc submitPassword(lock: Lock) =
     fatal("failed to send password to auth child")
   lock.password.clear()
 
+proc devEscape(lock: Lock) =
+  if lock.state != lsLocked:
+    return
+  lock.password.clear()
+  sessionLockUnlockAndDestroy(lock.sessionLock)
+  lock.sessionLock = nil
+  lock.state = lsExiting
+
 proc keyboardKey(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, state: uint32) {.cdecl.} =
   if state != WlKeyboardKeyStatePressed:
     return
@@ -446,8 +454,11 @@ proc keyboardKey(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, sta
   of XkbKeyReturn, XkbKeyKpEnter:
     lock.submitPassword()
   of XkbKeyEscape:
-    lock.password.clear()
-    lock.setColor(csInit)
+    if lock.opts.devMode:
+      lock.devEscape()
+    else:
+      lock.password.clear()
+      lock.setColor(csInit)
   of XkbKeyBackspace:
     lock.password.popCodepoint()
     if lock.password.len == 0:
@@ -646,13 +657,11 @@ proc applyProcessHardening() =
   ##
   ## - PR_SET_DUMPABLE=0: blocks ptrace and /proc snooping by other
   ##   same-UID processes.
-  ## - PR_SET_NO_NEW_PRIVS=1: any future execve cannot gain privileges.
   ## - RLIMIT_CORE=0: suppresses core dumps for the whole process.
   ## - mlockall(MCL_CURRENT | MCL_FUTURE): locks all current and future
   ##   pages into RAM so transient password material on the stack or in
   ##   libc internals cannot be paged to swap.
   discard prctl(PrSetDumpable, 0.culong, 0.culong, 0.culong, 0.culong)
-  discard prctl(PrSetNoNewPrivs, 1.culong, 0.culong, 0.culong, 0.culong)
   var rl = RLimit(rlim_cur: 0, rlim_max: 0)
   discard setrlimit(RlimitCoreId, addr rl)
   # mlockall may fail with EPERM under low RLIMIT_MEMLOCK or in
@@ -661,6 +670,12 @@ proc applyProcessHardening() =
   if mlockall(MclCurrent or MclFuture) != 0:
     stderr.writeLine("lockme: warning: mlockall failed; transient password material may be paged to swap (raise RLIMIT_MEMLOCK)")
 
+proc applyParentNoNewPrivs() =
+  ## Apply after forkAuthChild(). PAM may need setuid helpers such as
+  ## unix_chkpwd; no_new_privs would make those helpers ineffective if
+  ## inherited by the auth child.
+  discard prctl(PrSetNoNewPrivs, 1.culong, 0.culong, 0.culong, 0.culong)
+
 proc runLock*(opts: Options) =
   applyProcessHardening()
   initListeners()
@@ -668,6 +683,7 @@ proc runLock*(opts: Options) =
   defer: lock.deinit()
   lock.checkRequired()
   lock.auth = forkAuthChild()
+  applyParentNoNewPrivs()
   lock.createBuffers()
   if not lock.pixelManager.isNil:
     pixelManagerDestroy(lock.pixelManager)

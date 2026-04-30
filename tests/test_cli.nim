@@ -14,6 +14,14 @@ suite "cli":
     let opts = parseOptions(@[])
     check opts.ignoreEmptyPassword
 
+  test "devMode defaults to false":
+    let opts = parseOptions(@[])
+    check not opts.devMode
+
+  test "--dev-mode enables dev escape":
+    let opts = parseOptions(@["--dev-mode"])
+    check opts.devMode
+
   test "--allow-empty-password disables ignore":
     let opts = parseOptions(@["--allow-empty-password"])
     check not opts.ignoreEmptyPassword

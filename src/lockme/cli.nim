@@ -11,6 +11,7 @@ type
     readyFd*: int
     hasReadyFd*: bool
     ignoreEmptyPassword*: bool
+    devMode*: bool
     initColor*: uint32
     inputColor*: uint32
     inputAltColor*: uint32
@@ -30,6 +31,8 @@ const Usage* = """usage: lockme [options]
   --ready-fd <fd>                  Write a newline to fd after locking.
   --allow-empty-password           Submit empty passwords to PAM (default:
                                    ignore Enter on empty buffer).
+  --dev-mode                       Insecure development mode: Esc unlocks and
+                                   exits without PAM authentication.
   --check-protocols                Check required Wayland globals without locking.
 
   --init-color 0xRRGGBB            Set the initial color.
@@ -87,6 +90,8 @@ proc parseOptions*(args: seq[string]): Options =
       result.ignoreEmptyPassword = true
     of "--allow-empty-password":
       result.ignoreEmptyPassword = false
+    of "--dev-mode":
+      result.devMode = true
     of "--check-protocols":
       result.checkProtocols = true
     of "--ready-fd":

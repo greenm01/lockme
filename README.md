@@ -41,6 +41,11 @@ Plain `lockme` runs with all hardening enabled and ignores the Enter key on
 an empty password buffer. Pass `--allow-empty-password` if you need empty
 submissions to reach PAM.
 
+For development only, `lockme --dev-mode` makes `Esc` unlock and exit cleanly
+without talking to PAM. This is intentionally insecure and should not be used
+for a real screen lock, but it provides a compositor-safe escape hatch while
+testing lockme itself.
+
 The v1 UI follows waylock's minimal model: the lock surface is a solid color,
 typing changes the color, and failed authentication changes it to the failure
 color.
@@ -59,8 +64,9 @@ to harden the password buffer and the auth child:
   is not permitted to elide.
 - `prctl(PR_SET_DUMPABLE, 0)` on both the parent and the auth child to
   block ptrace and `/proc` snooping by other processes of the same UID.
-- `prctl(PR_SET_NO_NEW_PRIVS, 1)` to ensure no future `execve` can gain
-  privileges.
+- `prctl(PR_SET_NO_NEW_PRIVS, 1)` on the parent after the PAM auth child is
+  forked, so future parent-side `execve` cannot gain privileges without
+  breaking PAM helpers such as `unix_chkpwd`.
 - `setrlimit(RLIMIT_CORE, 0)` to suppress core dumps for the locker.
 - `close_range(2)` (kernel 5.9+) in the auth child to drop inherited file
   descriptors before invoking PAM; falls back to a manual loop on older
