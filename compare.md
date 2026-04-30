@@ -2,7 +2,7 @@
 
 *April 29, 2026*
 
-A side-by-side look at four Wayland screen lockers, written for the dude
+A side-by-side look at four Wayland screen lockers, written for the one
 who has to pick one and live with it.
 
 ## The contestants
@@ -135,7 +135,7 @@ The process model adds the syscalls waylock left out:
 PAM defaults differ too. The shipped `pam.d/lockme` is the explicit
 minimal chain — `pam_unix` + `pam_faillock` with tunables from
 `faillock.conf`. The full `auth include system-auth` chain is
-available as opt-in via `nimble installPamFull` for men who need
+available as opt-in via `nimble installPamFull` for folks who need
 fingerprint, smartcard, homed, or keyring auto-unlock. Empty Enter is
 ignored by default; `--allow-empty-password` opens it back up.
 
@@ -154,7 +154,7 @@ In rough order of "would I trust this on my own machine":
    small. The disclaimer is real: no external review, single author,
    no field deployment yet.
 2. **waylock** for the same use case if you want a project that has
-   been deployed by other men for several years. You give up
+   been deployed by other folks for several years. You give up
    `MADV_DONTDUMP`-on-the-process and the process-wide hardening, but
    you get years of accidental QA.
 3. **swaylock** if you want something every distro packages and
