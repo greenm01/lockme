@@ -43,6 +43,10 @@ Build dependencies:
 - `pkg-config`
 - development packages for `wayland-client`, `xkbcommon`, and `pam`
 
+Protocol refresh dependency:
+
+- `wayland-scanner`
+
 ```sh
 nimble build
 ```
@@ -97,6 +101,11 @@ To refresh the generated C/header files after updating the XML:
 ```sh
 nimble regenProtocols
 ```
+
+Refreshing protocols requires `wayland-scanner`. The task regenerates C/H
+from the vendored XML only; update the XML from `wayland-protocols` first
+when intentionally moving to a newer protocol revision. Commit the XML and
+generated C/H changes together.
 
 ## Run
 
