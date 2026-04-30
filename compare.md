@@ -31,7 +31,7 @@ agreement ends.
 | `prctl(PR_SET_DUMPABLE, 0)`        | no       | no      | no       | yes (parent + child) |
 | `prctl(PR_SET_NO_NEW_PRIVS, 1)`    | no       | no      | no       | yes (parent after auth fork) |
 | `setrlimit(RLIMIT_CORE, 0)`        | no       | no      | no       | yes |
-| `mlockall(MCL_CURRENT|MCL_FUTURE)` | no       | no      | no       | yes (best effort) |
+| `mlockall(MCL_CURRENT \| MCL_FUTURE)` | no       | no      | no       | yes (best effort) |
 | `close_range` in auth child        | no       | no      | n/a      | yes (with fallback) |
 | Default ignores empty Enter        | no       | no      | no       | yes |
 | Default PAM stack                  | `auth include login` | `auth include system-auth` | `auth include login` | `pam_unix` + `pam_faillock` |
