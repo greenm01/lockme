@@ -8,7 +8,7 @@ For a security-focused comparison against `swaylock`, `waylock`, and
 
 ## Why
 
-I was missing waylock on Niri and decided to create a new one from scratch... and because I dig Nim.
+I was missing waylock on Niri window manager and decided to create a new one from scratch... and because I dig Nim.
 
 ## Install build dependencies
 
