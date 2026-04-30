@@ -32,3 +32,6 @@ task deploy, "Build release, install binary, and install default (minimal) PAM c
 task test, "Run unit tests":
   exec "nim c -r --path:src tests/test_password.nim"
   exec "nim c -r --path:src tests/test_cli.nim"
+
+task regenProtocols, "Regenerate checked-in Wayland protocol stubs from vendored XML":
+  exec "scripts/regenerate-protocols.sh"

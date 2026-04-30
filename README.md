@@ -36,9 +36,20 @@ sudo apt install nim nimble build-essential libwayland-dev libxkbcommon-dev libp
 
 ## Build
 
+Build dependencies:
+
+- Nim `2.2.0` or newer
+- a C compiler
+- `pkg-config`
+- development packages for `wayland-client`, `xkbcommon`, and `pam`
+
 ```sh
 nimble build
 ```
+
+Release builds use checked-in Wayland protocol stubs, so `wayland-scanner`
+and `wayland-protocols` are not required unless you are refreshing those
+generated files.
 
 ## Deploy
 
@@ -55,6 +66,36 @@ root-owned.
 
 ```sh
 lockme --check-protocols
+```
+
+At runtime, the compositor must advertise:
+
+- `ext_session_lock_manager_v1`
+- `wp_viewporter`
+- either `wl_shm` or `wp_single_pixel_buffer_manager_v1`
+
+`wl_shm` is used for the default gradient surfaces when available.
+`wp_single_pixel_buffer_manager_v1` is optional and is used for solid-color
+buffers when available.
+
+## Wayland protocol sources
+
+`lockme` uses `libwayland-client` directly through a small C shim and
+generated protocol stubs. It does not depend on a third-party Wayland wrapper
+library; this keeps the C/Nim boundary explicit and leaves protocol handling
+on the standard Wayland C stack.
+
+The generated protocol files are checked in under `src/lockme/protocols`.
+Their XML sources are vendored in `src/lockme/protocols/xml`:
+
+- `ext-session-lock-v1` from `wayland-protocols/staging`
+- `single-pixel-buffer-v1` from `wayland-protocols/staging`
+- `viewporter` from `wayland-protocols/stable`
+
+To refresh the generated C/header files after updating the XML:
+
+```sh
+nimble regenProtocols
 ```
 
 ## Run

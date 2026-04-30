@@ -4,12 +4,19 @@ import ./auth
 import ./cli
 import ./password
 
-{.passC: "-Isrc -Isrc/lockme".}
+const
+  PkgConfigDeps = "wayland-client xkbcommon pam"
+  PkgConfigCheck = gorgeEx("pkg-config --exists " & PkgConfigDeps)
+
+when PkgConfigCheck.exitCode != 0:
+  {.error: "missing system dependencies: install pkg-config plus development packages for wayland-client, xkbcommon, and pam".}
+
+{.passC: "-Isrc -Isrc/lockme " & gorge("pkg-config --cflags " & PkgConfigDeps).}
 {.compile: "wayland_shim.c".}
 {.compile: "protocols/ext-session-lock-v1-protocol.c".}
 {.compile: "protocols/single-pixel-buffer-v1-protocol.c".}
 {.compile: "protocols/viewporter-protocol.c".}
-{.passL: "-lwayland-client -lxkbcommon -lpam".}
+{.passL: gorge("pkg-config --libs " & PkgConfigDeps).}
 
 const
   WlKeyboardKeyStatePressed = 1'u32
