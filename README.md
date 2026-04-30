@@ -10,6 +10,30 @@ For a security-focused comparison against `swaylock`, `waylock`, and
 
 I was missing waylock on Niri and decided to create a new one from scratch... and because I dig Nim.
 
+## Install build dependencies
+
+`lockme` needs Nim/Nimble, a C toolchain, and development headers for
+Wayland, xkbcommon, and PAM.
+
+Void Linux:
+
+```sh
+sudo xbps-install -Sy nim nimble base-devel wayland-devel libxkbcommon-devel pam-devel pkg-config
+```
+
+Arch Linux:
+
+```sh
+sudo pacman -S --needed nim nimble base-devel wayland libxkbcommon pam pkgconf
+```
+
+Debian/Ubuntu:
+
+```sh
+sudo apt update
+sudo apt install nim nimble build-essential libwayland-dev libxkbcommon-dev libpam0g-dev pkg-config
+```
+
 ## Build
 
 ```sh
