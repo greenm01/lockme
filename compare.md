@@ -145,62 +145,6 @@ deployed for years across thousands of installs. lockme has not.
 Years of accidental field testing is its own kind of audit, and lockme
 has not had it yet.
 
-## Language fit
-
-Picking a language for a screen locker is not the same as picking one
-for a web service. The job is small, the ecosystem demands are tiny,
-and the code has to be auditable by a man with a text editor.
-
-**C (swaylock)**. Honest about what it is. No GC, no runtime, no
-hidden control flow. The whole locker is read-top-to-bottom in an
-afternoon. The cost is the cost: every buffer, every length, every
-free is your problem, forever. swaylock has been bitten on this less
-than you would expect because the codebase is small and the surface
-narrow. Still the worst language for memory safety in absolute terms,
-the best for audit transparency.
-
-**Zig (waylock)**. Closer to C than to a managed language. No GC, no
-hidden allocations, explicit allocator passing. Stronger compile-time
-checks than C, real slices instead of `(pointer, length)` pairs,
-defer-based cleanup. For this application, Zig is arguably the best
-fit available. The price is a young toolchain and a small ecosystem
-— the language has changed under waylock more than once, and the
-HEAD on master here is still tagged `1.7.0-dev`. If you need
-long-term boring stability, Zig is not boring yet.
-
-**C++ (hyprlock)**. The wrong tool. C++ gives you std::string and
-std::thread, which is exactly how hyprlock ended up with a
-heap-allocating, copying, never-zeroing password container and PAM
-running in-process. The language does not force these choices, but
-its defaults pull you toward them. For a 200-line locker C++ is
-overkill. For a 9,000-line locker with GPU widgets, it is the wrong
-tradeoff: you got the complexity of C++ and none of the discipline.
-
-**Nim (lockme)**. Honest answer: Nim is *fine* here, not obviously
-better. What you get: real strings and slices, exception handling,
-pragmatic FFI to libc and libwayland, a syntax that reads cleanly. A
-GC, but ARC/ORC means deterministic destruction in this codebase, and
-the password buffer is a manual `posix_memalign` block that the GC
-never touches. Build determinism is good (`nim c -d:release`
-produces a stable binary).
-
-What you give up. Nim's ecosystem is small, smaller than Zig's for
-systems work. Wayland bindings are hand-written C shims here, not a
-maintained library. The runtime, while small, is not zero — startup
-runs Nim init code before `mlock` is applied, and a future Nim runtime
-bug is shared address space with PAM. Audit-ability is decent if the
-reader knows Nim, worse than C for someone who does not. There is no
-second implementation, no second author.
-
-Would Zig be a better choice if you were starting over today? For
-someone willing to track a young toolchain, probably yes. Would C be
-a better choice? For audit-ability, yes; for safety, no. Is Nim a
-mistake? No. It does the job, the resulting code is shorter than the
-C equivalent, and the hardening on top is the same syscalls regardless
-of language. The language choice is a smaller factor than the design
-choices on top of it. Hyprlock proves that: C++ did not doom it; the
-in-process PAM and unprotected `std::string` did.
-
 ## Verdict
 
 In rough order of "would I trust this on my own machine":
