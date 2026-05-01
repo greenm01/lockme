@@ -1,14 +1,27 @@
 # lockme
 
-`lockme` is a small screen locker for Wayland compositors that support
-`ext-session-lock-v1`.
+A hardened, minimalist screen locker for Wayland compositors that
+implement `ext-session-lock-v1`.
 
-For a security-focused comparison against `swaylock`, `waylock`, and
-`hyprlock`, see [compare.md](compare.md).
+`lockme` aims at one thing: keep a typed password out of every place
+the kernel and userspace would otherwise let it leak. The buffer is
+page-aligned, `mlock`'d, marked `MADV_DONTDUMP`, and wiped with
+`explicit_bzero` on every clear. The locker process drops dumpability,
+denies new privileges, suppresses core dumps, and isolates PAM in a
+forked child that talks back over a length-prefixed pipe. The UI is a
+solid color that rotates through a configurable palette as you type
+&mdash; no widgets, no GPU, no animations, no surprises.
+
+It is small on disk too: a stripped release binary is **~221 KB**,
+roughly an order of magnitude smaller than `waylock` and `hyprlock`
+while shipping more hardening than either. See
+[compare.md](compare.md) for the full security and size comparison
+against `swaylock`, `waylock`, and `hyprlock`.
 
 ## Why
 
-I was missing waylock on Niri window manager and decided to create a new one from scratch... and because I dig Nim.
+I was missing waylock on the Niri window manager and decided to write a
+new one from scratch &mdash; and because I dig Nim.
 
 ## Install build dependencies
 
@@ -164,9 +177,10 @@ are accepted in the config file (the CLI requires the `0x` form).
 ## Build size
 
 The release build uses size-oriented flags (`--opt:size --mm:orc
--d:useMalloc -flto -Wl,--gc-sections -Wl,-s`) so that the KDL parser and
-its transitive dependencies (`bigints`, `unicodedb`) do not bloat the
-binary. Run `nimble sizecheck` to print the final binary size.
+-d:useMalloc -flto -Wl,--gc-sections -Wl,-s`) so that the KDL parser
+and its transitive dependencies (`bigints`, `unicodedb`) do not bloat
+the binary. The current stripped output is ~221 KB. Run `nimble
+sizecheck` to print the size of your build.
 
 ## Platform requirements
 
