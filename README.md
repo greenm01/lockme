@@ -78,7 +78,7 @@ At runtime, the compositor must advertise:
 - `wp_viewporter`
 - either `wl_shm` or `wp_single_pixel_buffer_manager_v1`
 
-`wl_shm` is used for the default gradient surfaces when available.
+`wl_shm` is used for the default color surfaces when available.
 `wp_single_pixel_buffer_manager_v1` is optional and is used for solid-color
 buffers when available.
 
@@ -122,11 +122,51 @@ without talking to PAM. This is intentionally insecure and should not be used
 for a real screen lock, but it provides a compositor-safe escape hatch while
 testing lockme itself.
 
-The v1 UI follows waylock's minimal model: the lock surface is a subtle
-gradient, typing changes the gradient, and failed authentication changes it
-to the failure gradient. The `--init-color`, `--input-color`,
-`--input-alt-color`, and `--fail-color` flags switch the UI back to exact
-solid colors for all states.
+The v1 UI follows waylock's minimal model: the lock surface is a solid color
+at rest, typing rotates the surface through a configurable input palette,
+and failed authentication shows a solid failure color. The `--init-color`,
+`--input-color` (repeatable), and `--fail-color` flags override the defaults.
+
+### Default palette
+
+| State            | Color       | RGB        |
+| ---------------- | ----------- | ---------- |
+| At rest (`init`) | Black       | `0x000000` |
+| Typing (Father)  | Indigo      | `0x4B0082` |
+| Typing (Son)     | Royal Blue  | `0x003366` |
+| Typing (Spirit)  | Life Green  | `0x006400` |
+| Auth failure     | Crimson     | `0x8B0000` |
+
+Repeating `--input-color` defines a custom palette. The first occurrence
+replaces the built-in palette; later occurrences append:
+
+```sh
+lockme --input-color 0x111111 --input-color 0x222222 --input-color 0x333333
+```
+
+## Configuration
+
+`lockme` reads an optional KDL 2.0 configuration file. The discovery order is:
+
+1. `--config <path>` (must exist if specified),
+2. `$XDG_CONFIG_HOME/lockme/config.kdl` (default `~/.config/lockme/config.kdl`),
+3. each `$XDG_CONFIG_DIRS/lockme/config.kdl` in order (default `/etc/xdg`).
+
+`--no-config` disables the search entirely. CLI flags always win over values
+set in the config file. Parse and validation errors abort startup with a
+diagnostic on stderr.
+
+A documented template lives at `examples/lockme.kdl` and is dropped into
+`~/.config/lockme/config.kdl` by `nimble installBin`/`nimble deploy` only if
+that file does not already exist. Both `0xRRGGBB` and `#RRGGBB` color forms
+are accepted in the config file (the CLI requires the `0x` form).
+
+## Build size
+
+The release build uses size-oriented flags (`--opt:size --mm:orc
+-d:useMalloc -flto -Wl,--gc-sections -Wl,-s`) so that the KDL parser and
+its transitive dependencies (`bigints`, `unicodedb`) do not bloat the
+binary. Run `nimble sizecheck` to print the final binary size.
 
 ## Platform requirements
 

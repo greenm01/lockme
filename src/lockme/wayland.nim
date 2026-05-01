@@ -92,8 +92,12 @@ type
   ExtSessionLockSurfaceListener {.bycopy.} = object
     configure: proc(data: pointer; surface: ptr ExtSessionLockSurface; serial, width, height: uint32) {.cdecl.}
 
-  ColorState = enum
-    csInit, csInput, csInputAlt, csFail
+  ColorKind = enum
+    ckInit, ckInput, ckFail
+
+  ColorState = object
+    kind: ColorKind
+    inputIdx: int
 
   LockState = enum
     lsInitializing, lsLocking, lsLocked, lsExiting
@@ -129,7 +133,7 @@ type
     viewporter: ptr WpViewporter
     pixelManager: ptr WpSinglePixelBufferManager
     shm: ptr WlShm
-    buffers: array[ColorState, ptr WlBuffer]
+    buffers: seq[ptr WlBuffer]
     outputs: seq[Output]
     seats: seq[Seat]
     xkbContext: ptr XkbContext
@@ -230,7 +234,6 @@ const
   MclFuture = 2.cint
   RlimitCoreId = 4.cint  # Linux: RLIMIT_CORE
   WlShmFormatXrgb8888 = 1'u32
-  GradientSize = 256
 
 var
   registryListener: WlRegistryListener
@@ -247,36 +250,26 @@ proc rgba16(value: uint32; shift: int): uint32 =
   let component = (value shr shift) and 0xff'u32
   component * (0xffffffff'u32 div 0xff'u32)
 
-proc colorValue(lock: Lock; color: ColorState): uint32 =
-  case color
-  of csInit: lock.opts.initColor
-  of csInput: lock.opts.inputColor
-  of csInputAlt: lock.opts.inputAltColor
-  of csFail: lock.opts.failColor
+proc bufferIndex(lock: Lock; color: ColorState): int =
+  ## Buffer layout: [init, fail, input0, input1, ...].
+  case color.kind
+  of ckInit: 0
+  of ckFail: 1
+  of ckInput: 2 + color.inputIdx
 
-proc gradientStart(color: ColorState): uint32 =
-  case color
-  of csInit: 0x0b0f14'u32
-  of csInput: 0x121625'u32
-  of csInputAlt: 0x0f1c1b'u32
-  of csFail: 0x1f1014'u32
+proc initState(): ColorState = ColorState(kind: ckInit, inputIdx: 0)
+proc failState(): ColorState = ColorState(kind: ckFail, inputIdx: 0)
+proc inputState(idx: int): ColorState = ColorState(kind: ckInput, inputIdx: idx)
 
-proc gradientEnd(color: ColorState): uint32 =
-  case color
-  of csInit: 0x1e2d36'u32
-  of csInput: 0x2d3a66'u32
-  of csInputAlt: 0x28534d'u32
-  of csFail: 0x5a1f2a'u32
-
-proc lerpChannel(a, b: uint32; shift, t, denom: int): uint32 =
-  let av = int((a shr shift) and 0xff'u32)
-  let bv = int((b shr shift) and 0xff'u32)
-  uint32((av * (denom - t) + bv * t) div denom)
-
-proc lerpRgb(a, b: uint32; t, denom: int): uint32 =
-  (lerpChannel(a, b, 16, t, denom) shl 16) or
-    (lerpChannel(a, b, 8, t, denom) shl 8) or
-    lerpChannel(a, b, 0, t, denom)
+proc nextInputState(lock: Lock): ColorState =
+  ## Rotate through the input palette. Wraps after the last entry.
+  let n = lock.opts.inputColors.len
+  if n <= 0:
+    return initState()
+  let nextIdx =
+    if lock.color.kind == ckInput: (lock.color.inputIdx + 1) mod n
+    else: 0
+  inputState(nextIdx)
 
 proc attachBuffer(output: Output; buffer: ptr WlBuffer) =
   if not output.configured or output.surface.isNil:
@@ -290,8 +283,9 @@ proc setColor(lock: Lock; color: ColorState) =
   if lock.color == color:
     return
   lock.color = color
+  let idx = lock.bufferIndex(color)
   for output in lock.outputs:
-    output.attachBuffer(lock.buffers[color])
+    output.attachBuffer(lock.buffers[idx])
 
 proc createOutputSurface(output: Output) =
   let lock = output.lock
@@ -355,52 +349,20 @@ proc createSolidShmBuffer(lock: Lock; rgb: uint32): ptr WlBuffer =
   result = wlShmPoolCreateBuffer(pool, 0, 1, 1, 4, WlShmFormatXrgb8888)
   wlShmPoolDestroy(pool)
 
-proc createGradientShmBuffer(lock: Lock; color: ColorState): ptr WlBuffer =
-  let width = GradientSize
-  let height = GradientSize
-  let stride = width * 4
-  let size = stride * height
-  let fd = memfd_create("lockme-gradient".cstring, 0)
-  if fd < 0:
-    fatal("failed to create gradient shm buffer fd")
-  if ftruncate(fd, size) != 0:
-    discard close(fd)
-    fatal("failed to size gradient shm buffer fd")
-  let mapped = mmap(nil, size, PROT_READ or PROT_WRITE, MAP_SHARED, fd, 0)
-  if mapped == cast[pointer](-1):
-    discard close(fd)
-    fatal("failed to map gradient shm buffer")
-
-  let pixels = cast[ptr UncheckedArray[uint32]](mapped)
-  let startRgb = gradientStart(color)
-  let endRgb = gradientEnd(color)
-  let denom = (width - 1) + (height - 1)
-  for y in 0 ..< height:
-    for x in 0 ..< width:
-      let rgb = lerpRgb(startRgb, endRgb, x + y, denom)
-      pixels[y * width + x] = 0xff000000'u32 or rgb
-
-  discard munmap(mapped, size)
-  let pool = wlShmCreatePool(lock.shm, fd, int32(size))
-  discard close(fd)
-  if pool.isNil:
-    fatal("failed to create gradient wl_shm pool")
-  result = wlShmPoolCreateBuffer(pool, 0, int32(width), int32(height), int32(stride), WlShmFormatXrgb8888)
-  wlShmPoolDestroy(pool)
-
-proc createBuffer(lock: Lock; color: ColorState): ptr WlBuffer =
-  if not lock.opts.customColors and not lock.shm.isNil:
-    return lock.createGradientShmBuffer(color)
-
-  let rgb = lock.colorValue(color)
+proc createBuffer(lock: Lock; rgb: uint32): ptr WlBuffer =
   if not lock.pixelManager.isNil:
     return lock.createSolidPixelBuffer(rgb)
   lock.createSolidShmBuffer(rgb)
 
 proc createBuffers(lock: Lock) =
-  for color in ColorState:
-    lock.buffers[color] = lock.createBuffer(color)
-    if lock.buffers[color].isNil:
+  let total = 2 + lock.opts.inputColors.len
+  lock.buffers.setLen(total)
+  lock.buffers[0] = lock.createBuffer(lock.opts.initColor)
+  lock.buffers[1] = lock.createBuffer(lock.opts.failColor)
+  for i, rgb in lock.opts.inputColors:
+    lock.buffers[2 + i] = lock.createBuffer(rgb)
+  for buf in lock.buffers:
+    if buf.isNil:
       fatal("failed to create color buffer")
 
 proc registryGlobal(data: pointer; registry: ptr WlRegistry; name: uint32; iface: cstring; version: uint32) {.cdecl.} =
@@ -535,32 +497,28 @@ proc keyboardKey(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, sta
       lock.devEscape()
     else:
       lock.password.clear()
-      lock.setColor(csInit)
+      lock.setColor(initState())
   of XkbKeyBackspace:
     lock.password.popCodepoint()
     if lock.password.len == 0:
-      lock.setColor(csInit)
+      lock.setColor(initState())
   of XkbKeyU:
     if xkb_state_mod_name_is_active(seat.xkbState, "Control".cstring, XkbStateModsDepressed or XkbStateModsLatched) == 1:
       lock.password.clear()
-      lock.setColor(csInit)
+      lock.setColor(initState())
       return
     var buffer: array[64, byte]
     let written = xkb_state_key_get_utf8(seat.xkbState, keycode, cast[cstring](addr buffer[0]), csize_t(buffer.len))
     if written > 0 and int(written) < buffer.len:
       if lock.password.appendUtf8(buffer.toOpenArray(0, int(written) - 1)):
-        case lock.color
-        of csInit, csInputAlt, csFail: lock.setColor(csInput)
-        of csInput: lock.setColor(csInputAlt)
+        lock.setColor(lock.nextInputState())
     explicit_bzero(addr buffer[0], csize_t(buffer.len))
   else:
     var buffer: array[64, byte]
     let written = xkb_state_key_get_utf8(seat.xkbState, keycode, cast[cstring](addr buffer[0]), csize_t(buffer.len))
     if written > 0 and int(written) < buffer.len:
       if lock.password.appendUtf8(buffer.toOpenArray(0, int(written) - 1)):
-        case lock.color
-        of csInit, csInputAlt, csFail: lock.setColor(csInput)
-        of csInput: lock.setColor(csInputAlt)
+        lock.setColor(lock.nextInputState())
     explicit_bzero(addr buffer[0], csize_t(buffer.len))
 
 proc seatCapabilities(data: pointer; wlSeat: ptr WlSeat; capabilities: uint32) {.cdecl.} =
@@ -625,7 +583,7 @@ proc lockSurfaceConfigure(data: pointer; surface: ptr ExtSessionLockSurface; ser
   output.width = int32(min(width, uint32(high(int32))))
   output.height = int32(min(height, uint32(high(int32))))
   lockSurfaceAckConfigure(surface, serial)
-  output.attachBuffer(output.lock.buffers[output.lock.color])
+  output.attachBuffer(output.lock.buffers[output.lock.bufferIndex(output.lock.color)])
 
 proc flushAndPrepareRead(lock: Lock) =
   while wl_display_prepare_read(lock.display) != 0:
@@ -707,7 +665,7 @@ proc connectAndDiscover(opts: Options): Lock =
   result = Lock(
     opts: opts,
     state: lsInitializing,
-    color: csInit,
+    color: initState(),
     password: initPasswordBuffer()
   )
   result.display = wl_display_connect(nil)
@@ -801,7 +759,7 @@ proc runLock*(opts: Options) =
         lock.sessionLock = nil
         lock.state = lsExiting
       else:
-        lock.setColor(csFail)
+        lock.setColor(failState())
     elif (pollfds[1].revents and (POLLHUP or POLLERR or POLLNVAL)) != 0:
       fatal("auth child exited unexpectedly")
 

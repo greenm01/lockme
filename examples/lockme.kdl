@@ -1,0 +1,28 @@
+// lockme configuration (KDL 2.0). All values shown here are the built-in
+// defaults; uncomment or edit lines to override. CLI flags always win over
+// values set here.
+
+// At-rest screen color (pure black).
+init-color "0x000000"
+
+// Color shown after a failed authentication attempt (deep crimson).
+fail-color "0x8B0000"
+
+// Palette cycled through on each keypress while typing the password.
+// Default order: Father (Tyrian indigo/violet), Son (royal blue),
+// Spirit (life green).
+inputs {
+    color "0x4B0082"
+    color "0x003366"
+    color "0x006400"
+}
+
+// Diagnostic verbosity: error | warning | info | debug
+log-level "error"
+
+// Detach to the background after locking succeeds.
+fork-on-lock #false
+
+// Ignore an empty password buffer when Enter is pressed (prevents
+// accidentally submitting nothing to PAM).
+ignore-empty-password #true
