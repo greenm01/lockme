@@ -4,15 +4,19 @@ A hardened, minimalist screen locker for Wayland compositors that
 implement `ext-session-lock-v1`.
 
 `lockme` aims at one thing: keep a typed password out of every place
-the kernel and userspace would otherwise let it leak. The buffer is
-page-aligned, `mlock`'d, marked `MADV_DONTDUMP`, and wiped with
-`explicit_bzero` on every clear. The locker process drops dumpability,
-denies new privileges, suppresses core dumps, and isolates PAM in a
-forked child that talks back over a length-prefixed pipe. The UI is a
-solid color that rotates through a configurable palette as you type
-&mdash; no widgets, no GPU, no animations, no surprises. Colors and
-the rest of the runtime knobs live in a small KDL 2.0 config file
-(see [Configuration](#configuration)).
+the kernel and userspace would otherwise let it leak.
+
+The password buffer is page-aligned, `mlock`'d, marked
+`MADV_DONTDUMP`, and wiped with `explicit_bzero` on every clear. The
+locker process drops dumpability, denies new privileges, and
+suppresses core dumps. PAM runs in a forked child that talks back
+over a length-prefixed pipe, so a misbehaving auth module never
+shares an address space with your secret.
+
+The UI is a solid color that rotates through a configurable palette
+as you type &mdash; no widgets, no GPU, no animations, no surprises.
+Colors and the rest of the runtime knobs live in a small KDL 2.0
+config file (see [Configuration](#configuration)).
 
 It is small on disk too: a stripped release binary is **~221 KB**,
 roughly an order of magnitude smaller than `waylock` and `hyprlock`
