@@ -10,7 +10,9 @@ page-aligned, `mlock`'d, marked `MADV_DONTDUMP`, and wiped with
 denies new privileges, suppresses core dumps, and isolates PAM in a
 forked child that talks back over a length-prefixed pipe. The UI is a
 solid color that rotates through a configurable palette as you type
-&mdash; no widgets, no GPU, no animations, no surprises.
+&mdash; no widgets, no GPU, no animations, no surprises. Colors and
+the rest of the runtime knobs live in a small KDL 2.0 config file
+(see [Configuration](#configuration)).
 
 It is small on disk too: a stripped release binary is **~221 KB**,
 roughly an order of magnitude smaller than `waylock` and `hyprlock`
