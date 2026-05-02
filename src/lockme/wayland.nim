@@ -1074,9 +1074,8 @@ proc runLock*(opts: Options) =
         lock.sessionLock = nil
         lock.state = lsExiting
       else:
-        if not lock.blankActive:
-          lock.failReturnPending = true
-          lock.failReturnAt = getMonoTime() + initDuration(milliseconds = MatrixFailHoldMs)
+        lock.failReturnPending = true
+        lock.failReturnAt = getMonoTime() + initDuration(milliseconds = MatrixFailHoldMs)
         lock.setColor(failState())
     elif (pollfds[1].revents and (POLLHUP or POLLERR or POLLNVAL)) != 0:
       fatal("auth child exited unexpectedly")
@@ -1085,7 +1084,7 @@ proc runLock*(opts: Options) =
       let now = getMonoTime()
       if lock.failReturnAt <= now:
         lock.failReturnPending = false
-        if not lock.blankActive and lock.color.kind == ckFail and lock.password.len == 0:
+        if lock.color.kind == ckFail and lock.password.len == 0:
           lock.setColor(initState())
 
     let matrixFrameNow = getMonoTime()
