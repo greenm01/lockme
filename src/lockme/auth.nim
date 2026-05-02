@@ -77,9 +77,11 @@ proc rlimitMemlockSummary(): string =
     return "unknown"
   "soft=" & $limit.rlim_cur & " hard=" & $limit.rlim_max & " bytes"
 
-proc warnMlockallFailed(flags: cint; err: cint) =
+proc logMlockallFailed(debugAuth: bool; flags: cint; err: cint) =
+  if not debugAuth:
+    return
   stderr.writeLine(
-    "lockme: warning: auth child mlockall(flags=" & $flags & ") failed: " &
+    "lockme: debug: auth child mlockall(flags=" & $flags & ") failed: " &
     $strerror(err) & " (RLIMIT_MEMLOCK " & rlimitMemlockSummary() &
     "); PAM/libc password temporaries may be paged to swap, but the dedicated password buffer remains mlock'd"
   )
@@ -212,7 +214,7 @@ proc authLoop(conn: AuthConnection; debugAuth: bool) {.noreturn.} =
   # The dedicated password buffer below remains mandatory and fails
   # closed if its own mlock fails.
   if mlockall(MclCurrent) != 0:
-    warnMlockallFailed(MclCurrent, errno)
+    logMlockallFailed(debugAuth, MclCurrent, errno)
 
   # Allocate the mlock'd password buffer in the child's address space.
   childPassword = initPasswordBuffer()

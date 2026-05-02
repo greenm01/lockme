@@ -216,12 +216,11 @@ to harden the password buffer and the auth child:
 
 - `mlock(2)` and `madvise(MADV_DONTDUMP)` on a page-aligned password buffer,
   preventing it from being paged to swap or included in core dumps.
-- `mlockall(2)` on the locker process and auth child to keep transient
-  password material on the stack and in libc/PAM internals out of swap. Matrix
-  mode and the auth child use `MCL_CURRENT` to avoid turning later GPU, driver,
-  or PAM allocations into `RLIMIT_MEMLOCK` failures; `--blank` uses
-  `MCL_CURRENT | MCL_FUTURE` in the locker process (best-effort; requires
-  sufficient `RLIMIT_MEMLOCK`).
+- Best-effort `mlockall(2)` on the locker process and auth child to keep
+  transient password material on the stack and in libc/PAM internals out of
+  swap when `RLIMIT_MEMLOCK` permits it. Matrix mode and the auth child use
+  `MCL_CURRENT`; `--blank` uses `MCL_CURRENT | MCL_FUTURE` in the locker
+  process.
 - `explicit_bzero(3)` (glibc/musl) for password clearing that the compiler
   is not permitted to elide.
 - `prctl(PR_SET_DUMPABLE, 0)` on both the parent and the auth child to
@@ -257,9 +256,9 @@ shell is closed.
 
 `RLIMIT_MEMLOCK` must be at least the password buffer size (one page).
 Process-wide `mlockall` needs more headroom and can fail under normal
-desktop mappings or restrictive limits; if it fails, a warning is printed
-but the locker continues with the password buffer's own `mlock` still
-active.
+desktop mappings or restrictive limits. That best-effort failure is reported
+only at `--log-level debug`; the locker continues with the password buffer's
+own mandatory `mlock` still active.
 
 ## PAM stack
 

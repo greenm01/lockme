@@ -579,12 +579,10 @@ proc rlimitMemlockSummary(): string =
     return "unknown"
   "soft=" & $limit.rlim_cur & " hard=" & $limit.rlim_max & " bytes"
 
-proc warnMlockallFailed(flags: cint; err: cint) =
-  stderr.writeLine(
-    "lockme: warning: mlockall(flags=" & $flags & ") failed: " &
-    $strerror(err) & " (RLIMIT_MEMLOCK " & rlimitMemlockSummary() &
+proc mlockallFailureMessage(flags: cint; err: cint): string =
+  "mlockall(flags=" & $flags & ") failed: " & $strerror(err) &
+    " (RLIMIT_MEMLOCK " & rlimitMemlockSummary() &
     "); transient parent-process password material may be paged to swap, but the dedicated password buffer remains mlock'd"
-  )
 
 proc createOutputSurface(output: Output) =
   let lock = output.lock
@@ -1024,7 +1022,8 @@ proc applyProcessHardening(opts: Options) =
     if not opts.blank: MclCurrent
     else: MclCurrent or MclFuture
   if mlockall(mlockFlags) != 0:
-    warnMlockallFailed(mlockFlags, errno)
+    if opts.logLevel == llDebug:
+      stderr.writeLine("lockme: debug: " & mlockallFailureMessage(mlockFlags, errno))
 
 proc applyParentNoNewPrivs() =
   ## Apply after forkAuthChild(). PAM may need setuid helpers such as

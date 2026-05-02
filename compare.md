@@ -131,11 +131,9 @@ The process model adds the syscalls waylock left out:
 - `prctl(PR_SET_NO_NEW_PRIVS, 1)` on the parent after the auth child is
   forked, leaving PAM helpers such as `unix_chkpwd` usable.
 - `setrlimit(RLIMIT_CORE, 0)` to suppress core dumps.
-- `mlockall` best-effort, with a clear warning if `RLIMIT_MEMLOCK` is
-  too low. The Matrix renderer and auth child use `MCL_CURRENT` to
-  avoid forcing later GPU, driver, or PAM allocations under the memory
-  lock limit; `--blank` keeps the stronger parent-side
-  `MCL_CURRENT | MCL_FUTURE` path.
+- `mlockall` best-effort, with debug diagnostics if `RLIMIT_MEMLOCK` is
+  too low. The Matrix renderer and auth child use `MCL_CURRENT`; `--blank`
+  keeps the stronger parent-side `MCL_CURRENT | MCL_FUTURE` path.
 - `close_range` in the auth child to drop inherited file descriptors,
   with a manual fallback for kernels older than 5.9.
 - `--fork-on-lock` redirects stdio to `/dev/null` and re-applies the
