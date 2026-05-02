@@ -56,6 +56,31 @@ proc matrixFrameDue*(ticker: var MatrixTicker; visible: bool; nowMs: int64; fram
     ticker.nextAtMs = nowMs + int64(max(frameMs, 1))
     true
 
+proc resetColumn(rain: var MatrixRain, columnIdx: int, height: int) =
+    if height <= 0:
+        rain.columns[columnIdx] = MatrixColumn(
+            gapRemaining: 0,
+            length: 0,
+            updateEvery: 1,
+            phase: 0,
+            headRow: -1,
+            tailRow: 0,
+            glyphs: @[]
+        )
+        return
+
+    if rain.columns[columnIdx].glyphs.len != height:
+        rain.columns[columnIdx].glyphs.setLen(height)
+
+    let lengthMax = max(MatrixMinStreamLength, height - 3)
+    let length = MatrixMinStreamLength + rain.rng.rand(lengthMax - MatrixMinStreamLength)
+    rain.columns[columnIdx].gapRemaining = 1 + rain.rng.rand(height - 1)
+    rain.columns[columnIdx].length = length
+    rain.columns[columnIdx].updateEvery = 1 + rain.rng.rand(2)
+    rain.columns[columnIdx].phase = (columnIdx * 3 + rain.rng.rand(6)) mod 3
+    rain.columns[columnIdx].headRow = -1
+    rain.columns[columnIdx].tailRow = 0
+
 proc makeColumn*(rain: var MatrixRain, height: int, columnIdx: int): MatrixColumn =
     if height <= 0:
         return MatrixColumn(
@@ -111,7 +136,7 @@ proc advanceColumn(rain: var MatrixRain, columnIdx: int) =
             rain.columns[columnIdx].glyphs[row] = rain.rng.rand(MatrixGlyphs.len - 1)
 
     if rain.columns[columnIdx].tailRow >= height:
-        rain.columns[columnIdx] = rain.makeColumn(height, columnIdx)
+        rain.resetColumn(columnIdx, height)
 
 proc advance*(rain: var MatrixRain) =
     rain.tick = rain.tick + 1
@@ -132,7 +157,8 @@ proc initMatrixRain*(width, height: int): MatrixRain =
     )
     result.columns = newSeq[MatrixColumn](width)
     for i in 0 ..< width:
-        result.columns[i] = result.makeColumn(height, i)
+        result.columns[i].glyphs = newSeq[int](height)
+        result.resetColumn(i, height)
     
     let warmupSteps = max(1, height + MatrixMinStreamLength + 2)
     for _ in 0 ..< warmupSteps:

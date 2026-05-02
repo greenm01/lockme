@@ -160,6 +160,7 @@ type
     xkbContext: ptr XkbContext
     password: PasswordBuffer
     auth: AuthConnection
+    signalFd: cint
     blankActive: bool
     matrixRenderer: MatrixRenderer
     matrixAtlas: MatrixGlyphAtlas
@@ -250,6 +251,7 @@ proc xkb_state_key_get_one_sym(state: ptr XkbState; keycode: uint32): uint32 {.i
 proc xkb_state_key_get_utf8(state: ptr XkbState; keycode: uint32; buffer: cstring; size: csize_t): cint {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc xkb_state_mod_name_is_active(state: ptr XkbState; name: cstring; kind: cint): cint {.importc, header: "<xkbcommon/xkbcommon.h>".}
 proc memfd_create(name: cstring; flags: cuint): cint {.importc, header: "<sys/mman.h>".}
+proc signalfd(fd: cint; mask: var Sigset; flags: cint): cint {.importc, header: "<sys/signalfd.h>".}
 proc prctl(option: cint; arg2, arg3, arg4, arg5: culong): cint
   {.importc, header: "<sys/prctl.h>", varargs.}
 proc explicit_bzero(p: pointer; n: csize_t) {.importc, header: "<string.h>".}
@@ -583,6 +585,43 @@ proc mlockallFailureMessage(flags: cint; err: cint): string =
   "mlockall(flags=" & $flags & ") failed: " & $strerror(err) &
     " (RLIMIT_MEMLOCK " & rlimitMemlockSummary() &
     "); transient parent-process password material may be paged to swap, but the dedicated password buffer remains mlock'd"
+
+proc makeSignalFd(): cint =
+  var mask: Sigset
+  var oldMask: Sigset
+  if sigemptyset(mask) != 0:
+    return -1
+  if sigaddset(mask, SIGINT) != 0 or sigaddset(mask, SIGTERM) != 0:
+    return -1
+  if sigprocmask(SIG_BLOCK, mask, oldMask) != 0:
+    return -1
+  result = signalfd(-1, mask, O_CLOEXEC or O_NONBLOCK)
+  if result < 0:
+    var discardMask: Sigset
+    discard sigprocmask(SIG_SETMASK, oldMask, discardMask)
+    return -1
+
+proc signalName(signo: uint32): string =
+  if signo == uint32(SIGINT):
+    "SIGINT"
+  elif signo == uint32(SIGTERM):
+    "SIGTERM"
+  else:
+    "signal " & $signo
+
+proc drainSignalFd(lock: Lock): bool =
+  var info: array[128, uint8]
+  while true:
+    let rc = read(lock.signalFd, addr info[0], info.len)
+    if rc == info.len:
+      result = true
+      let signo = uint32(info[0]) or (uint32(info[1]) shl 8) or
+        (uint32(info[2]) shl 16) or (uint32(info[3]) shl 24)
+      lock.logMessage(llDebug, "received " & signalName(signo) & "; exiting")
+    elif rc < 0 and errno == EINTR:
+      continue
+    else:
+      break
 
 proc createOutputSurface(output: Output) =
   let lock = output.lock
@@ -971,6 +1010,15 @@ proc deinit(lock: Lock) =
     wl_display_disconnect(lock.display)
   if not lock.matrixRenderer.isNil:
     lock.matrixRenderer.close()
+  if lock.auth.readFd >= 0:
+    discard close(lock.auth.readFd)
+    lock.auth.readFd = -1
+  if lock.auth.writeFd >= 0:
+    discard close(lock.auth.writeFd)
+    lock.auth.writeFd = -1
+  if lock.signalFd >= 0:
+    discard close(lock.signalFd)
+    lock.signalFd = -1
   lock.password.clear()
 
 proc connectAndDiscover(opts: Options): Lock =
@@ -979,6 +1027,8 @@ proc connectAndDiscover(opts: Options): Lock =
     state: lsInitializing,
     color: initState(),
     password: initPasswordBuffer(),
+    auth: AuthConnection(readFd: -1, writeFd: -1),
+    signalFd: -1,
     blankActive: opts.blank
   )
   result.matrixClockStart = getMonoTime()
@@ -1038,6 +1088,9 @@ proc runLock*(opts: Options) =
   defer: lock.deinit()
   lock.checkRequired()
   lock.auth = forkAuthChild(opts.logLevel == llDebug)
+  lock.signalFd = makeSignalFd()
+  if lock.signalFd < 0:
+    stderr.writeLine("lockme: warning: failed to create signal fd; SIGINT/SIGTERM may not clean up gracefully")
   applyParentNoNewPrivs()
   lock.createBuffers()
   if not lock.pixelManager.isNil:
@@ -1055,11 +1108,15 @@ proc runLock*(opts: Options) =
   for output in lock.outputs:
     output.createOutputSurface()
 
-  var pollfds: array[2, TPollfd]
+  var pollfds: array[3, TPollfd]
   while lock.state != lsExiting:
     lock.flushAndPrepareRead()
     pollfds[0] = TPollfd(fd: wl_display_get_fd(lock.display), events: POLLIN, revents: 0)
     pollfds[1] = TPollfd(fd: lock.auth.readFd, events: POLLIN, revents: 0)
+    var pollLen = 2
+    if lock.signalFd >= 0:
+      pollfds[2] = TPollfd(fd: lock.signalFd, events: POLLIN, revents: 0)
+      pollLen = 3
 
     let pollStart = getMonoTime()
     let matrixVisible = lock.wantsMatrix()
@@ -1073,7 +1130,7 @@ proc runLock*(opts: Options) =
       let failTimeout = failReturnTimeout(pollStart, lock.failReturnAt)
       timeout = combinePollTimeout(timeout, failTimeout)
 
-    let pollRc = poll(addr pollfds[0], Tnfds(pollfds.len), timeout)
+    let pollRc = poll(addr pollfds[0], Tnfds(pollLen), timeout)
     if pollRc < 0:
       if errno == EINTR:
         wl_display_cancel_read(lock.display)
@@ -1086,6 +1143,14 @@ proc runLock*(opts: Options) =
       while wl_display_dispatch_pending(lock.display) > 0: discard
     else:
       wl_display_cancel_read(lock.display)
+
+    if pollLen > 2 and (pollfds[2].revents and POLLIN) != 0:
+      if lock.drainSignalFd():
+        lock.state = lsExiting
+        continue
+    elif pollLen > 2 and (pollfds[2].revents and (POLLHUP or POLLERR or POLLNVAL)) != 0:
+      lock.state = lsExiting
+      continue
 
     if (pollfds[1].revents and POLLIN) != 0:
       var ok = false

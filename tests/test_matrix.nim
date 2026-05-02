@@ -99,6 +99,21 @@ suite "matrix":
         visible = true
     check visible
 
+  test "column reset reuses glyph storage":
+    var rain = initMatrixRain(1, 4)
+    let original = cast[uint](addr rain.columns[0].glyphs[0])
+
+    rain.columns[0].gapRemaining = 0
+    rain.columns[0].length = 3
+    rain.columns[0].updateEvery = 1
+    rain.columns[0].phase = 0
+    rain.columns[0].headRow = 4
+    rain.columns[0].tailRow = 4
+    rain.advance()
+
+    check rain.columns[0].glyphs.len == 4
+    check cast[uint](addr rain.columns[0].glyphs[0]) == original
+
   test "font renderer initializes from fontconfig":
     let renderer = initMatrixRenderer("monospace", "", 18, 24, 2)
     check renderer.usesFontRenderer()

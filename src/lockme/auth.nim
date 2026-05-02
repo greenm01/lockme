@@ -238,7 +238,7 @@ proc authLoop(conn: AuthConnection; debugAuth: bool) {.noreturn.} =
     if not readPassword(conn):
       childPassword.clear()
       discard pam_end(pamh, status)
-      quit("lockme: failed to read password from parent", 1)
+      quit(0)
 
     status = pam_authenticate(pamh, 0)
     logPamStatus(debugAuth, pamh, "pam_authenticate", status)
