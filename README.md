@@ -3,7 +3,7 @@
 A hardened, minimalist screen locker for Wayland compositors that
 implement `ext-session-lock-v1`.
 
-![Matrix rain lock screen](matrix_rain.png)
+![Matrix rain lock screen](matrix_rain.png?v=20260502)
 
 `lockme` aims at one thing: keep a typed password out of every place
 the kernel and userspace would otherwise let it leak.
