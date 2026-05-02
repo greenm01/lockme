@@ -12,11 +12,11 @@ who has to pick one and live with it.
 | swaylock | C        | 1.8.5    | ~820                 | 106 KB          |
 | waylock  | Zig      | 1.7.0-dev (HEAD 9523ce0) | ~1,310 | 1.9 MB        |
 | hyprlock | C++      | 0.9.5    | ~9,330 (whole tree)  | 825 KB          |
-| lockme   | Nim      | 0.1.0    | ~1,300               | 430 KB          |
+| lockme   | Nim      | 0.1.0    | ~1,300               | 454 KB          |
 
 Sizes are the as-shipped binaries on the author's Arch system
 (`/usr/bin/{swaylock,waylock,hyprlock}` from the official packages and
-`nimble build` for lockme). lockme is still roughly half the size of
+`nimble build` for lockme). lockme is still well under the size of
 hyprlock and several times smaller than waylock, despite shipping more
 hardening than either.
 
@@ -37,7 +37,7 @@ agreement ends.
 | `prctl(PR_SET_DUMPABLE, 0)`        | no       | no      | no       | yes (parent + child) |
 | `prctl(PR_SET_NO_NEW_PRIVS, 1)`    | no       | no      | no       | yes (parent after auth fork) |
 | `setrlimit(RLIMIT_CORE, 0)`        | no       | no      | no       | yes |
-| `mlockall` best effort                | no       | no      | no       | yes (`MCL_CURRENT`; `MCL_CURRENT \| MCL_FUTURE` with `--blank`) |
+| `mlockall` best effort             | no       | no      | no       | yes (`MCL_CURRENT`; stronger `MCL_FUTURE` only with `--blank`) |
 | `close_range` in auth child        | no       | no      | n/a      | yes (with fallback) |
 | Default ignores empty Enter        | no       | no      | no       | yes |
 | Default PAM stack                  | `auth include login` | `auth include system-auth` | `auth include login` | `pam_faildelay` + `pam_unix` |
@@ -132,8 +132,9 @@ The process model adds the syscalls waylock left out:
   forked, leaving PAM helpers such as `unix_chkpwd` usable.
 - `setrlimit(RLIMIT_CORE, 0)` to suppress core dumps.
 - `mlockall` best-effort, with a clear warning if `RLIMIT_MEMLOCK` is
-  too low. The Matrix renderer uses `MCL_CURRENT` to avoid locking
-  unbounded GPU/driver allocations; `--blank` keeps the stronger
+  too low. The Matrix renderer and auth child use `MCL_CURRENT` to
+  avoid forcing later GPU, driver, or PAM allocations under the memory
+  lock limit; `--blank` keeps the stronger parent-side
   `MCL_CURRENT | MCL_FUTURE` path.
 - `close_range` in the auth child to drop inherited file descriptors,
   with a manual fallback for kernels older than 5.9.
@@ -143,10 +144,12 @@ The process model adds the syscalls waylock left out:
 PAM defaults differ too. The shipped `pam.d/lockme` is the explicit
 minimal chain — `pam_faildelay` + `pam_unix`, which slows repeated
 failures without recording faillock tallies or locking out the user.
-The full `auth include system-auth` chain is available as opt-in via
-`nimble installPamFull` for folks who need
-fingerprint, smartcard, homed, or keyring auto-unlock. Empty Enter is
-ignored by default; `--allow-empty-password` opens it back up.
+That choice is deliberate for a screen locker: a local attacker should
+not be able to turn three bad guesses into a timed lockout of a later
+correct password. The full `auth include system-auth` chain is available
+as opt-in via `nimble installPamFull` for folks who need fingerprint,
+smartcard, homed, or keyring auto-unlock. Empty Enter is ignored by
+default; `--allow-empty-password` opens it back up.
 
 The UI changed since the first version of this document. lockme now
 defaults to GPU-rendered Matrix rain while idle, with `--blank` and
@@ -185,9 +188,10 @@ In rough order of "would I trust this on my own machine":
    password as a feature, not a bug, in exchange for the GPU
    widgets and animations. For a screen locker, the trade is bad.
 
-NOTE: Every locker here ships a PAM file that is one line long.
-Whichever you pick, audit your `system-auth` chain (or use lockme's
-minimal default). The PAM stack is the soft underbelly of all four.
+NOTE: Most lockers here delegate to a one-line PAM include. Whichever
+you pick, audit the PAM chain it actually uses. lockme's default avoids
+`system-auth` by design; `nimble installPamFull` opts back into it when
+you need distro-integrated auth modules.
 
 ## What lockme could still tighten
 

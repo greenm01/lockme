@@ -20,8 +20,8 @@ solid configurable palette, failed auth shows a solid failure color, and `Alt-B`
 toggles between Matrix and a blank screen. Colors and the rest of the runtime
 knobs live in a small KDL 2.0 config file (see [Configuration](#configuration)).
 
-It is small on disk too: a stripped release binary is **~430 KB**,
-roughly half the size of `hyprlock` and several times smaller than
+It is small on disk too: a stripped release binary is **~454 KB**,
+well under the size of `hyprlock` and several times smaller than
 `waylock` while shipping more hardening than either. See
 [compare.md](compare.md) for the full security and size comparison
 against `swaylock`, `waylock`, and `hyprlock`.
@@ -206,7 +206,7 @@ are accepted in the config file (the CLI requires the `0x` form).
 The release build uses size-oriented flags (`--opt:size --mm:orc
 -d:useMalloc -flto -Wl,--gc-sections -Wl,-s`) so that the KDL parser
 and its transitive dependencies (`bigints`, `unicodedb`) do not bloat
-the binary. The current stripped output is ~430 KB. Run `nimble
+the binary. The current stripped output is ~454 KB. Run `nimble
 sizecheck` to print the size of your build.
 
 ## Platform requirements
@@ -255,11 +255,11 @@ With `--fork-on-lock`, the background process additionally redirects
 `stdin`/`stdout`/`stderr` to `/dev/null` to avoid `SIGPIPE` if the parent
 shell is closed.
 
-`RLIMIT_MEMLOCK` must be at least the password buffer size (one page); the
-systemd default of `8M` is more than sufficient for both the password
-buffer's `mlock` and the process-wide `mlockall`. If `mlockall` fails
-(for example in restrictive containers) a warning is printed but the
-locker continues with the password buffer's own `mlock` still active.
+`RLIMIT_MEMLOCK` must be at least the password buffer size (one page).
+Process-wide `mlockall` needs more headroom and can fail under normal
+desktop mappings or restrictive limits; if it fails, a warning is printed
+but the locker continues with the password buffer's own `mlock` still
+active.
 
 ## PAM stack
 
@@ -274,8 +274,10 @@ account     required      pam_unix.so
 
 This verifies a plain Unix password and applies a two-second failure delay
 without recording faillock tallies or locking the user out after mistyped
-passwords. Most Linux users authenticate this way and gain nothing from a
-larger PAM stack on their screen locker, so this is the default.
+passwords. That avoids the bad screen-locker failure mode where three
+incorrect attempts can block a later correct password for several minutes.
+Most Linux users authenticate this way and gain nothing from a larger PAM
+stack on their screen locker, so this is the default.
 
 The default does NOT enable `pam_systemd_home`, GNOME Keyring or
 KWallet auto-unlock, fingerprint readers, smartcards, or any other
@@ -298,9 +300,10 @@ whatever `system-auth` says it is. To audit it, read
 bypasses checks for a group) silently affect `lockme` as well, and
 `lockme` cannot defend against this.
 
-For PAM debugging, run `./lockme --log-level debug` from a terminal. Debug
-logging records PAM status codes and messages only; it does not log password
-contents, password length, or prompts.
+For PAM debugging, run `./lockme --log-level debug --blank --dev-mode` from
+a terminal. Debug logging records PAM status codes and messages only; it
+does not log password contents, password length, or prompts. In `--dev-mode`,
+`Esc` exits without asking PAM, which keeps manual auth tests recoverable.
 
 To revert to the default minimal chain at any time:
 
