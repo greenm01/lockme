@@ -26,6 +26,8 @@ while shipping more hardening than either. See
 [compare.md](compare.md) for the full security and size comparison
 against `swaylock`, `waylock`, and `hyprlock`.
 
+Press Alt-B to toggle between a blank screen and the matrix rainfall.
+
 ## Why
 
 I was missing waylock on the Niri window manager and decided to write a
