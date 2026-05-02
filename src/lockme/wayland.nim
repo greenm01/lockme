@@ -253,8 +253,10 @@ proc memfd_create(name: cstring; flags: cuint): cint {.importc, header: "<sys/mm
 proc prctl(option: cint; arg2, arg3, arg4, arg5: culong): cint
   {.importc, header: "<sys/prctl.h>", varargs.}
 proc explicit_bzero(p: pointer; n: csize_t) {.importc, header: "<string.h>".}
+proc strerror(errnum: cint): cstring {.importc, header: "<string.h>".}
 proc mlockall(flags: cint): cint {.importc, header: "<sys/mman.h>".}
 proc setrlimit(resource: cint; rlim: ptr RLimit): cint {.importc, header: "<sys/resource.h>".}
+proc getrlimit(resource: cint; rlim: ptr RLimit): cint {.importc, header: "<sys/resource.h>".}
 
 const
   PrSetDumpable = 4.cint
@@ -262,6 +264,7 @@ const
   MclCurrent = 1.cint
   MclFuture = 2.cint
   RlimitCoreId = 4.cint  # Linux: RLIMIT_CORE
+  RlimitMemlockId = 8.cint  # Linux: RLIMIT_MEMLOCK
   WlShmFormatXrgb8888 = 1'u32
 
 var
@@ -287,6 +290,9 @@ proc logMatrixFailure(output: Output; message: string) =
   let lock = output.lock
   if not lock.blankActive or lock.logEnabled(llWarning):
     stderr.writeLine("lockme: warning: matrix output " & $output.name & ": " & message)
+
+proc matrixSurfaceRenderable(output: Output): bool =
+  output.configured and not output.surface.isNil and output.width > 0 and output.height > 0
 
 proc rgba16(value: uint32; shift: int): uint32 =
   let component = (value shr shift) and 0xff'u32
@@ -348,7 +354,7 @@ proc destroyMatrixBuffers(output: Output) =
 
 proc createMatrixGpu(output: Output): bool =
   let lock = output.lock
-  if lock.blankActive or output.surface.isNil or output.width <= 0 or output.height <= 0:
+  if lock.blankActive or not output.matrixSurfaceRenderable():
     return false
   if not lock.ensureMatrixRenderer():
     output.logMatrixFailure("failed to initialize matrix renderer")
@@ -377,7 +383,7 @@ proc createMatrixGpu(output: Output): bool =
 proc createMatrixShmBuffers(output: Output) =
   let lock = output.lock
   output.destroyMatrixBuffers()
-  if lock.blankActive:
+  if lock.blankActive or not output.matrixSurfaceRenderable():
     return
   if not lock.ensureMatrixRenderer():
     output.logMatrixFailure("failed to initialize matrix renderer")
@@ -486,6 +492,8 @@ proc hasMatrixBuffers(output: Output): bool =
 proc matrixNowMs(lock: Lock; now: MonoTime): int64
 
 proc attachMatrixFrame(output: Output): bool =
+  if not output.matrixSurfaceRenderable():
+    return false
   if output.matrixGpu.isNil and not output.hasMatrixBuffers():
     output.createMatrixShmBuffers()
   if not output.matrixGpu.isNil:
@@ -514,6 +522,8 @@ proc attachMatrixFrame(output: Output): bool =
 
 proc presentOutput(output: Output) =
   if output.lock.wantsMatrix():
+    if not output.matrixSurfaceRenderable():
+      return
     if output.attachMatrixFrame():
       return
     output.logMatrixFailure("no matrix buffer available; using init color fallback")
@@ -562,6 +572,19 @@ proc combinePollTimeout(a, b: cint): cint =
   elif b < 0: a
   elif a < b: a
   else: b
+
+proc rlimitMemlockSummary(): string =
+  var limit: RLimit
+  if getrlimit(RlimitMemlockId, addr limit) != 0:
+    return "unknown"
+  "soft=" & $limit.rlim_cur & " hard=" & $limit.rlim_max & " bytes"
+
+proc warnMlockallFailed(flags: cint; err: cint) =
+  stderr.writeLine(
+    "lockme: warning: mlockall(flags=" & $flags & ") failed: " &
+    $strerror(err) & " (RLIMIT_MEMLOCK " & rlimitMemlockSummary() &
+    "); transient parent-process password material may be paged to swap, but the dedicated password buffer remains mlock'd"
+  )
 
 proc createOutputSurface(output: Output) =
   let lock = output.lock
@@ -1001,7 +1024,7 @@ proc applyProcessHardening(opts: Options) =
     if not opts.blank: MclCurrent
     else: MclCurrent or MclFuture
   if mlockall(mlockFlags) != 0:
-    stderr.writeLine("lockme: warning: mlockall failed; transient password material may be paged to swap (raise RLIMIT_MEMLOCK)")
+    warnMlockallFailed(mlockFlags, errno)
 
 proc applyParentNoNewPrivs() =
   ## Apply after forkAuthChild(). PAM may need setuid helpers such as

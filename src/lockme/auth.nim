@@ -37,6 +37,7 @@ const
   AuthInitFailedByte = uint8(ord('E'))
 
   PrSetDumpable = 4.cint
+  RlimitMemlockId = 8.cint  # Linux: RLIMIT_MEMLOCK
 
 proc pam_start(serviceName, user: cstring; pamConv: ptr PamConv; pamh: ptr ptr PamHandle): cint
   {.importc, header: "<security/pam_appl.h>".}
@@ -52,9 +53,11 @@ proc pam_strerror(pamh: ptr PamHandle; errnum: cint): cstring
 proc getpwuid(uid: Uid): ptr Passwd {.importc, header: "<pwd.h>".}
 proc calloc(count, size: csize_t): pointer {.importc, header: "<stdlib.h>".}
 proc strndup(s: pointer; n: csize_t): cstring {.importc, header: "<string.h>".}
+proc strerror(errnum: cint): cstring {.importc, header: "<string.h>".}
 proc prctl(option: cint; arg2, arg3, arg4, arg5: culong): cint
   {.importc, header: "<sys/prctl.h>", varargs.}
 proc mlockall(flags: cint): cint {.importc, header: "<sys/mman.h>".}
+proc getrlimit(resource: cint; rlim: ptr RLimit): cint {.importc, header: "<sys/resource.h>".}
 proc close_range(first, last: cuint; flags: cuint): cint
   {.importc, header: "<unistd.h>".}
 proc sysconf(name: cint): clong {.importc, header: "<unistd.h>".}
@@ -67,6 +70,19 @@ var childPassword: PasswordBuffer
 proc logPamStatus(debugAuth: bool; pamh: ptr PamHandle; op: string; status: cint) =
   if debugAuth:
     stderr.writeLine("lockme: debug: " & op & " status=" & $status & " (" & $pam_strerror(pamh, status) & ")")
+
+proc rlimitMemlockSummary(): string =
+  var limit: RLimit
+  if getrlimit(RlimitMemlockId, addr limit) != 0:
+    return "unknown"
+  "soft=" & $limit.rlim_cur & " hard=" & $limit.rlim_max & " bytes"
+
+proc warnMlockallFailed(flags: cint; err: cint) =
+  stderr.writeLine(
+    "lockme: warning: auth child mlockall(flags=" & $flags & ") failed: " &
+    $strerror(err) & " (RLIMIT_MEMLOCK " & rlimitMemlockSummary() &
+    "); PAM/libc password temporaries may be paged to swap, but the dedicated password buffer remains mlock'd"
+  )
 
 proc readExact(fd: cint; p: pointer; len: int): bool =
   var offset = 0
@@ -196,7 +212,7 @@ proc authLoop(conn: AuthConnection; debugAuth: bool) {.noreturn.} =
   # The dedicated password buffer below remains mandatory and fails
   # closed if its own mlock fails.
   if mlockall(MclCurrent) != 0:
-    stderr.writeLine("lockme: warning: auth child mlockall failed; PAM password material may be paged to swap (raise RLIMIT_MEMLOCK)")
+    warnMlockallFailed(MclCurrent, errno)
 
   # Allocate the mlock'd password buffer in the child's address space.
   childPassword = initPasswordBuffer()
