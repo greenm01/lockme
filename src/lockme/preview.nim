@@ -81,6 +81,7 @@ type
     gpu: MatrixGpuRenderer
     gpuUnavailable: bool
     buffers: array[2, PreviewBuffer]
+    blankBuffer: PreviewBuffer
     nextBuffer: int
     clockStart: MonoTime
     ticker: MatrixTicker
@@ -151,18 +152,39 @@ proc matrixNowMs(preview: Preview; now: MonoTime): int64 =
     return 0
   (now - preview.clockStart).inMilliseconds
 
+proc destroyBuffer(buf: var PreviewBuffer) =
+  if not buf.data.isNil:
+    discard munmap(buf.data, buf.width * buf.height * 4)
+  if not buf.buffer.isNil:
+    wlBufferDestroy(buf.buffer)
+  buf = PreviewBuffer()
+
 proc destroyBuffers(preview: Preview) =
   if not preview.gpu.isNil:
     preview.gpu.close()
     preview.gpu = nil
   for buf in mitems(preview.buffers):
-    if not buf.data.isNil:
-      discard munmap(buf.data, buf.width * buf.height * 4)
-    if not buf.buffer.isNil:
-      wlBufferDestroy(buf.buffer)
-    buf = PreviewBuffer()
+    buf.destroyBuffer()
+  preview.blankBuffer.destroyBuffer()
   preview.nextBuffer = 0
   preview.gpuUnavailable = false
+
+proc ensureRenderer(preview: Preview): bool =
+  if not preview.renderer.isNil:
+    return true
+  preview.renderer = initMatrixRenderer(
+    preview.opts.matrixFontFamily,
+    preview.opts.matrixFontPath,
+    preview.opts.matrixFontSize,
+    preview.opts.matrixLineHeight,
+    preview.opts.matrixCellScale
+  )
+  if preview.renderer.isNil:
+    return false
+  if not preview.renderer.usesFontRenderer():
+    stderr.writeLine("lockme: warning: failed to initialize antialiased matrix font renderer; using bitmap fallback")
+  preview.atlas = buildMatrixGlyphAtlas(preview.renderer)
+  true
 
 proc createGpu(preview: Preview): bool =
   if preview.width <= 0 or preview.height <= 0 or preview.surface.isNil:
@@ -190,6 +212,9 @@ proc createGpu(preview: Preview): bool =
 
 proc createBuffers(preview: Preview): bool =
   if preview.width <= 0 or preview.height <= 0:
+    return false
+  if not preview.ensureRenderer():
+    stderr.writeLine("lockme: warning: failed to initialize Matrix renderer")
     return false
 
   let width = int(preview.width)
@@ -262,9 +287,78 @@ proc createBuffers(preview: Preview): bool =
   preview.rain = initMatrixRain(geometry.cols, geometry.rows)
   true
 
+proc createBlankBuffer(preview: Preview): bool =
+  if preview.width <= 0 or preview.height <= 0:
+    return false
+  let width = int(preview.width)
+  let height = int(preview.height)
+  if not preview.blankBuffer.buffer.isNil and preview.blankBuffer.width == width and preview.blankBuffer.height == height:
+    return true
+  preview.blankBuffer.destroyBuffer()
+  if preview.shm.isNil:
+    stderr.writeLine("lockme: warning: wl_shm unavailable for blank preview")
+    return false
+  let size = width * height * 4
+  if size > int(high(int32)):
+    stderr.writeLine("lockme: warning: blank preview buffer too large: " & $size & " bytes")
+    return false
+  let fd = memfd_create("lockme-preview-blank".cstring, 0)
+  if fd < 0:
+    stderr.writeLine("lockme: warning: memfd_create failed for blank preview buffer")
+    return false
+  if ftruncate(fd, size.Off) != 0:
+    discard close(fd)
+    stderr.writeLine("lockme: warning: ftruncate failed for blank preview buffer")
+    return false
+  let mapped = mmap(nil, size, PROT_READ or PROT_WRITE, MAP_SHARED, fd, 0)
+  if mapped == cast[pointer](-1):
+    discard close(fd)
+    stderr.writeLine("lockme: warning: mmap failed for blank preview buffer")
+    return false
+  let pool = wlShmCreatePool(preview.shm, fd, size.int32)
+  discard close(fd)
+  if pool.isNil:
+    discard munmap(mapped, size)
+    stderr.writeLine("lockme: warning: wl_shm pool creation failed for blank preview")
+    return false
+  let wlbuf = wlShmPoolCreateBuffer(pool, 0, width.int32, height.int32, (width * 4).int32, WlShmFormatXrgb8888)
+  wlShmPoolDestroy(pool)
+  if wlbuf.isNil:
+    discard munmap(mapped, size)
+    stderr.writeLine("lockme: warning: wl_shm buffer creation failed for blank preview")
+    return false
+
+  let color = 0xff000000'u32 or preview.opts.initColor
+  let pixels = cast[ptr UncheckedArray[uint32]](mapped)
+  for i in 0 ..< width * height:
+    pixels[i] = color
+  preview.blankBuffer = PreviewBuffer(
+    buffer: wlbuf,
+    data: pixels,
+    width: width,
+    height: height,
+    busy: false
+  )
+  discard wl_buffer_add_listener(preview.blankBuffer.buffer, cast[pointer](addr bufferListener), cast[pointer](addr preview.blankBuffer))
+  true
+
+proc presentBlank(preview: Preview): bool =
+  if not preview.configured or preview.surface.isNil or preview.xdgSurface.isNil:
+    return false
+  if not preview.createBlankBuffer():
+    return false
+  xdgSurfaceSetWindowGeometry(preview.xdgSurface, 0, 0, preview.width, preview.height)
+  wlSurfaceAttach(preview.surface, preview.blankBuffer.buffer, 0, 0)
+  wlSurfaceDamageBuffer(preview.surface, 0, 0, preview.width, preview.height)
+  wlSurfaceCommit(preview.surface)
+  preview.blankBuffer.busy = true
+  true
+
 proc presentFrame(preview: Preview): bool =
   if not preview.configured or preview.surface.isNil or preview.xdgSurface.isNil:
     return false
+  if preview.opts.blank:
+    return preview.presentBlank()
   if not preview.createBuffers():
     return false
 
@@ -405,16 +499,8 @@ proc connectAndCreate(opts: Options): Preview =
     clockStart: getMonoTime()
   )
 
-  result.renderer = initMatrixRenderer(
-    opts.matrixFontFamily,
-    opts.matrixFontPath,
-    opts.matrixFontSize,
-    opts.matrixLineHeight,
-    opts.matrixCellScale
-  )
-  if not result.renderer.usesFontRenderer():
-    stderr.writeLine("lockme: warning: failed to initialize antialiased matrix font renderer; using bitmap fallback")
-  result.atlas = buildMatrixGlyphAtlas(result.renderer)
+  if not opts.blank:
+    discard result.ensureRenderer()
 
   result.display = wl_display_connect(nil)
   if result.display.isNil:
@@ -457,9 +543,10 @@ proc runDevWindow*(opts: Options) =
     pollfd = TPollfd(fd: wl_display_get_fd(preview.display), events: POLLIN, revents: 0)
 
     let pollStart = getMonoTime()
+    let matrixVisible = preview.configured and not preview.opts.blank
     let timeout = cint(matrixFrameTimeoutMs(
       preview.ticker,
-      preview.configured,
+      matrixVisible,
       preview.matrixNowMs(pollStart),
       preview.opts.matrixFrameMs
     ))
@@ -482,7 +569,7 @@ proc runDevWindow*(opts: Options) =
     let frameNow = getMonoTime()
     if matrixFrameDue(
       preview.ticker,
-      preview.configured,
+      preview.configured and not preview.opts.blank,
       preview.matrixNowMs(frameNow),
       preview.opts.matrixFrameMs
     ):

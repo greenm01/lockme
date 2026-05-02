@@ -3,6 +3,8 @@
 A hardened, minimalist screen locker for Wayland compositors that
 implement `ext-session-lock-v1`.
 
+![Matrix rain lock screen](matrix_rain.png)
+
 `lockme` aims at one thing: keep a typed password out of every place
 the kernel and userspace would otherwise let it leak.
 
@@ -13,12 +15,12 @@ suppresses core dumps. PAM runs in a forked child that talks back
 over a length-prefixed pipe, so a misbehaving auth module never
 shares an address space with your secret.
 
-The UI is a solid color that rotates through a configurable palette
-as you type &mdash; no widgets, no GPU, no animations, no surprises.
-Colors and the rest of the runtime knobs live in a small KDL 2.0
-config file (see [Configuration](#configuration)).
+The UI defaults to GPU-rendered Matrix rain while idle. Typing switches to a
+solid configurable palette, failed auth shows a solid failure color, and `Alt-B`
+toggles between Matrix and a blank screen. Colors and the rest of the runtime
+knobs live in a small KDL 2.0 config file (see [Configuration](#configuration)).
 
-It is small on disk too: a stripped release binary is **~221 KB**,
+It is small on disk too: a stripped release binary is **~430 KB**,
 roughly an order of magnitude smaller than `waylock` and `hyprlock`
 while shipping more hardening than either. See
 [compare.md](compare.md) for the full security and size comparison
@@ -134,9 +136,9 @@ generated C/H changes together.
 lockme
 ```
 
-Plain `lockme` runs with all hardening enabled and ignores the Enter key on
-an empty password buffer. Pass `--allow-empty-password` if you need empty
-submissions to reach PAM.
+Plain `lockme` shows Matrix rain while idle and ignores the Enter key on an
+empty password buffer. Pass `--blank` to start on a blank screen, or
+`--allow-empty-password` if you need empty submissions to reach PAM.
 
 For development only, `lockme --dev-mode` makes `Esc` unlock and exit cleanly
 without talking to PAM. This is intentionally insecure and should not be used
@@ -156,12 +158,12 @@ Matrix rain is rendered through a Sokol/EGL/GLES path when available. The glyph
 atlas is generated from the configured font and the built-in Koine Greek Matrix
 glyph list; if GPU setup fails, lockme warns and falls back to the existing
 software renderer. The GPU rain pipeline adapts MIT-licensed shader logic from
-Rezmason's Matrix rain renderer.
+Rezmason's Matrix rain renderer. While locked, `Alt-B` toggles between Matrix
+rain and a blank screen.
 
-The v1 UI follows waylock's minimal model: the lock surface is a solid color
-at rest, typing rotates the surface through a configurable input palette,
-and failed authentication shows a solid failure color. The `--init-color`,
-`--input-color` (repeatable), and `--fail-color` flags override the defaults.
+Typing rotates the surface through a configurable input palette, and failed
+authentication shows a solid failure color. The `--init-color`, `--input-color`
+(repeatable), and `--fail-color` flags override the defaults.
 
 ### Default palette
 

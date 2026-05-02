@@ -32,6 +32,8 @@ const
   XkbKeyKpEnter = 0xff8d'u32
   XkbKeyEscape = 0xff1b'u32
   XkbKeyBackspace = 0xff08'u32
+  XkbKeyB = 0x0042'u32
+  XkbKeyLowerB = 0x0062'u32
   XkbKeyU = 0x0075'u32
   XkbStateModsDepressed = 1.cint
   XkbStateModsLatched = 2.cint
@@ -158,7 +160,7 @@ type
     xkbContext: ptr XkbContext
     password: PasswordBuffer
     auth: AuthConnection
-    matrixEnabled: bool
+    blankActive: bool
     matrixRenderer: MatrixRenderer
     matrixAtlas: MatrixGlyphAtlas
     matrixClockStart: MonoTime
@@ -283,7 +285,7 @@ proc logMessage(lock: Lock; level: LogLevel; message: string) =
 
 proc logMatrixFailure(output: Output; message: string) =
   let lock = output.lock
-  if lock.matrixEnabled or lock.logEnabled(llWarning):
+  if not lock.blankActive or lock.logEnabled(llWarning):
     stderr.writeLine("lockme: warning: matrix output " & $output.name & ": " & message)
 
 proc rgba16(value: uint32; shift: int): uint32 =
@@ -312,7 +314,24 @@ proc nextInputState(lock: Lock): ColorState =
   inputState(nextIdx)
 
 proc wantsMatrix(lock: Lock): bool =
-  lock.matrixEnabled and lock.color.kind == ckInit and lock.password.len == 0
+  not lock.blankActive and lock.color.kind == ckInit and lock.password.len == 0
+
+proc ensureMatrixRenderer(lock: Lock): bool =
+  if not lock.matrixRenderer.isNil:
+    return true
+  lock.matrixRenderer = initMatrixRenderer(
+    lock.opts.matrixFontFamily,
+    lock.opts.matrixFontPath,
+    lock.opts.matrixFontSize,
+    lock.opts.matrixLineHeight,
+    lock.opts.matrixCellScale
+  )
+  if lock.matrixRenderer.isNil:
+    return false
+  if not lock.matrixRenderer.usesFontRenderer():
+    stderr.writeLine("lockme: warning: failed to initialize antialiased matrix font renderer; using bitmap fallback")
+  lock.matrixAtlas = buildMatrixGlyphAtlas(lock.matrixRenderer)
+  true
 
 proc destroyMatrixBuffers(output: Output) =
   if not output.matrixGpu.isNil:
@@ -329,7 +348,10 @@ proc destroyMatrixBuffers(output: Output) =
 
 proc createMatrixGpu(output: Output): bool =
   let lock = output.lock
-  if not lock.matrixEnabled or output.surface.isNil or output.width <= 0 or output.height <= 0:
+  if lock.blankActive or output.surface.isNil or output.width <= 0 or output.height <= 0:
+    return false
+  if not lock.ensureMatrixRenderer():
+    output.logMatrixFailure("failed to initialize matrix renderer")
     return false
   if output.matrixGpuUnavailable:
     return false
@@ -355,7 +377,10 @@ proc createMatrixGpu(output: Output): bool =
 proc createMatrixShmBuffers(output: Output) =
   let lock = output.lock
   output.destroyMatrixBuffers()
-  if not lock.matrixEnabled:
+  if lock.blankActive:
+    return
+  if not lock.ensureMatrixRenderer():
+    output.logMatrixFailure("failed to initialize matrix renderer")
     return
 
   if output.createMatrixGpu():
@@ -461,6 +486,8 @@ proc hasMatrixBuffers(output: Output): bool =
 proc matrixNowMs(lock: Lock; now: MonoTime): int64
 
 proc attachMatrixFrame(output: Output): bool =
+  if output.matrixGpu.isNil and not output.hasMatrixBuffers():
+    output.createMatrixShmBuffers()
   if not output.matrixGpu.isNil:
     viewportSetDestination(output.viewport, output.width, output.height)
     return output.matrixGpu.render(
@@ -500,6 +527,24 @@ proc setColor(lock: Lock; color: ColorState) =
   lock.color = color
   for output in lock.outputs:
     output.presentOutput()
+
+proc presentAll(lock: Lock) =
+  for output in lock.outputs:
+    output.presentOutput()
+
+proc toggleBlank(lock: Lock) =
+  if lock.state == lsExiting:
+    return
+  lock.blankActive = not lock.blankActive
+  if lock.blankActive:
+    for output in lock.outputs:
+      output.destroyMatrixBuffers()
+  else:
+    discard lock.ensureMatrixRenderer()
+    for output in lock.outputs:
+      if output.configured:
+        output.createMatrixShmBuffers()
+  lock.presentAll()
 
 proc failReturnTimeout(now, deadline: MonoTime): cint =
   if deadline <= now:
@@ -698,6 +743,9 @@ proc keyboardModifiers(data: pointer; keyboard: ptr WlKeyboard; serial, modsDepr
   if not seat.xkbState.isNil:
     discard xkb_state_update_mask(seat.xkbState, modsDepressed, modsLatched, modsLocked, 0, 0, group)
 
+proc isModifierActive(state: ptr XkbState; name: string): bool =
+  xkb_state_mod_name_is_active(state, name.cstring, XkbStateModsDepressed or XkbStateModsLatched) == 1
+
 proc submitPassword(lock: Lock) =
   if lock.state != lsLocked:
     return
@@ -725,6 +773,9 @@ proc keyboardKey(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, sta
 
   let keycode = key + 8
   let sym = xkb_state_key_get_one_sym(seat.xkbState, keycode)
+  if (sym == XkbKeyB or sym == XkbKeyLowerB) and seat.xkbState.isModifierActive("Mod1"):
+    lock.toggleBlank()
+    return
   case sym
   of XkbKeyReturn, XkbKeyKpEnter:
     lock.submitPassword()
@@ -739,7 +790,7 @@ proc keyboardKey(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, sta
     if lock.password.len == 0:
       lock.setColor(initState())
   of XkbKeyU:
-    if xkb_state_mod_name_is_active(seat.xkbState, "Control".cstring, XkbStateModsDepressed or XkbStateModsLatched) == 1:
+    if seat.xkbState.isModifierActive("Control"):
       lock.password.clear()
       lock.setColor(initState())
       return
@@ -907,20 +958,11 @@ proc connectAndDiscover(opts: Options): Lock =
     state: lsInitializing,
     color: initState(),
     password: initPasswordBuffer(),
-    matrixEnabled: opts.matrix
+    blankActive: opts.blank
   )
   result.matrixClockStart = getMonoTime()
-  if result.matrixEnabled:
-    result.matrixRenderer = initMatrixRenderer(
-      opts.matrixFontFamily,
-      opts.matrixFontPath,
-      opts.matrixFontSize,
-      opts.matrixLineHeight,
-      opts.matrixCellScale
-    )
-    if not result.matrixRenderer.usesFontRenderer():
-      stderr.writeLine("lockme: warning: failed to initialize antialiased matrix font renderer; using bitmap fallback")
-    result.matrixAtlas = buildMatrixGlyphAtlas(result.matrixRenderer)
+  if not result.blankActive:
+    discard result.ensureMatrixRenderer()
   result.display = wl_display_connect(nil)
   if result.display.isNil:
     fatal("failed to connect to a Wayland compositor")
@@ -956,7 +998,7 @@ proc applyProcessHardening(opts: Options) =
   # containers; the password buffer's own mlock is mandatory and handled
   # separately, so a failure here only weakens defense-in-depth.
   let mlockFlags =
-    if opts.matrix: MclCurrent
+    if not opts.blank: MclCurrent
     else: MclCurrent or MclFuture
   if mlockall(mlockFlags) != 0:
     stderr.writeLine("lockme: warning: mlockall failed; transient password material may be paged to swap (raise RLIMIT_MEMLOCK)")
@@ -1032,7 +1074,7 @@ proc runLock*(opts: Options) =
         lock.sessionLock = nil
         lock.state = lsExiting
       else:
-        if lock.matrixEnabled:
+        if not lock.blankActive:
           lock.failReturnPending = true
           lock.failReturnAt = getMonoTime() + initDuration(milliseconds = MatrixFailHoldMs)
         lock.setColor(failState())
@@ -1043,7 +1085,7 @@ proc runLock*(opts: Options) =
       let now = getMonoTime()
       if lock.failReturnAt <= now:
         lock.failReturnPending = false
-        if lock.matrixEnabled and lock.color.kind == ckFail and lock.password.len == 0:
+        if not lock.blankActive and lock.color.kind == ckFail and lock.password.len == 0:
           lock.setColor(initState())
 
     let matrixFrameNow = getMonoTime()

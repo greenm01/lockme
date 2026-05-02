@@ -30,7 +30,7 @@ type
     cfCheckProtocols
     cfConfigPath
     cfNoConfig
-    cfMatrix
+    cfBlank
     cfDevWindow
 
   Options* = object
@@ -48,7 +48,7 @@ type
     showVersion*: bool
     configPath*: Option[string]
     noConfig*: bool
-    matrix*: bool
+    blank*: bool
     devWindow*: bool
     matrixFrameMs*: int
     matrixCellScale*: int
@@ -74,10 +74,10 @@ const Usage* = """usage: lockme [options]
                                    ignore Enter on empty buffer).
   --dev-mode                       Insecure development mode: Esc unlocks and
                                    exits without PAM authentication.
-  --dev-window                     With --dev-mode, render the Matrix preview
-                                   in a normal Wayland window.
+  --dev-window                     With --dev-mode, render the preview in a
+                                   normal Wayland window.
   --check-protocols                Check required Wayland globals without locking.
-  --matrix                         Enable matrix screensaver when idle.
+  --blank                          Start with a blank screen instead of Matrix.
 
   --config <path>                  Load configuration from <path>.
   --no-config                      Do not load any configuration file.
@@ -164,9 +164,9 @@ proc parseOptions*(args: seq[string]): Options =
     of "--check-protocols":
       result.checkProtocols = true
       result.setFlags.incl cfCheckProtocols
-    of "--matrix":
-      result.matrix = true
-      result.setFlags.incl cfMatrix
+    of "--blank":
+      result.blank = true
+      result.setFlags.incl cfBlank
     of "--no-config":
       result.noConfig = true
       result.setFlags.incl cfNoConfig

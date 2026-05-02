@@ -27,8 +27,8 @@ fork-on-lock #false
 // accidentally submitting nothing to PAM).
 ignore-empty-password #true
 
-// Enable matrix screensaver when idle.
-matrix #false
+// Start with a blank screen instead of Matrix rain.
+blank #false
 
 // Matrix rain frame interval in milliseconds (higher is slower).
 matrix-frame-ms 40

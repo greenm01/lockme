@@ -85,10 +85,18 @@ suite "cli":
     check opts.noConfig
     check cfNoConfig in opts.setFlags
 
-  test "--matrix enables matrix":
-    let opts = parseOptions(@["--matrix"])
-    check opts.matrix
-    check cfMatrix in opts.setFlags
+  test "matrix is default display mode":
+    let opts = parseOptions(@[])
+    check not opts.blank
+
+  test "--blank starts blank":
+    let opts = parseOptions(@["--blank"])
+    check opts.blank
+    check cfBlank in opts.setFlags
+
+  test "--matrix is rejected":
+    expect ValueError:
+      discard parseOptions(@["--matrix"])
 
   test "matrix frame timing default":
     let opts = parseOptions(@[])

@@ -138,12 +138,15 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
       raise newException(ValueError, "ignore-empty-password requires a boolean value")
     opts.ignoreEmptyPassword = n.args[0].kBool()
 
-  let matrixNode = doc.findNode("matrix")
-  if matrixNode.isSome and cfMatrix notin opts.setFlags:
-    let n = matrixNode.get
+  if doc.findNode("matrix").isSome:
+    raise newException(ValueError, "matrix has been replaced by blank")
+
+  let blankNode = doc.findNode("blank")
+  if blankNode.isSome and cfBlank notin opts.setFlags:
+    let n = blankNode.get
     if n.args.len < 1:
-      raise newException(ValueError, "matrix requires a boolean value")
-    opts.matrix = n.args[0].kBool()
+      raise newException(ValueError, "blank requires a boolean value")
+    opts.blank = n.args[0].kBool()
 
   let matrixFrameNode = doc.findNode("matrix-frame-ms")
   if matrixFrameNode.isSome:

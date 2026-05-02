@@ -104,10 +104,10 @@ ignore-empty-password #false
     check opts.forkOnLock == true
     check opts.ignoreEmptyPassword == false
 
-  test "matrix option":
-    let path = getTempDir() / "lockme_test_matrix.kdl"
+  test "blank option and matrix settings":
+    let path = getTempDir() / "lockme_test_blank.kdl"
     writeFile(path, """
-matrix #true
+blank #true
 matrix-frame-ms 220
 matrix-cell-scale 3
 matrix-font-family "JetBrains Mono"
@@ -122,7 +122,7 @@ matrix-brightness-decay 1.5
     defer: removeFile(path)
     var opts = defaultOptions()
     opts.applyConfigFile(path)
-    check opts.matrix == true
+    check opts.blank == true
     check opts.matrixFrameMs == 220
     check opts.matrixCellScale == 3
     check opts.matrixFontFamily == "JetBrains Mono"
@@ -134,13 +134,21 @@ matrix-brightness-decay 1.5
     check opts.matrixRaindropLength == 1.25
     check opts.matrixBrightnessDecay == 1.5
 
-  test "CLI matrix wins over config":
-    let path = getTempDir() / "lockme_test_matrix_override.kdl"
+  test "CLI blank wins over config":
+    let path = getTempDir() / "lockme_test_blank_override.kdl"
+    writeFile(path, "blank #false\n")
+    defer: removeFile(path)
+    var opts = parseOptions(@["--blank"])
+    opts.applyConfigFile(path)
+    check opts.blank == true
+
+  test "old matrix option is rejected":
+    let path = getTempDir() / "lockme_test_matrix_replaced.kdl"
     writeFile(path, "matrix #false\n")
     defer: removeFile(path)
-    var opts = parseOptions(@["--matrix"])
-    opts.applyConfigFile(path)
-    check opts.matrix == true
+    var opts = defaultOptions()
+    expect ValueError:
+      opts.applyConfigFile(path)
 
   test "matrix-frame-ms range is validated":
     let path = getTempDir() / "lockme_test_matrix_frame_bad.kdl"
