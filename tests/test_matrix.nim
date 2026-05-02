@@ -1,8 +1,11 @@
 import std/unittest
 
-import lockme/[matrix, matrix_render]
+import lockme/[font8x16, matrix, matrix_render]
 
 suite "matrix":
+  test "bitmap fallback glyph table matches matrix glyph set":
+    check Font8x16.len == MatrixGlyphs.len
+
   test "zero-height rain is safe":
     var rain = initMatrixRain(2, 0)
     rain.advance()
@@ -23,7 +26,7 @@ suite "matrix":
     var rain = initMatrixRain(1, 3)
     rain.columns[0].headRow = 1
     rain.columns[0].tailRow = 0
-    rain.columns[0].glyphs = @[0, 24, 0]
+    rain.columns[0].glyphs = @[0, MatrixGlyphs.high, 0]
 
     var pixels = newSeq[uint32](8 * 48)
     renderMatrix(rain, cast[ptr UncheckedArray[uint32]](addr pixels[0]), 8, 48)
@@ -60,7 +63,7 @@ suite "matrix":
     var rain = initMatrixRain(1, 1)
     rain.columns[0].headRow = 0
     rain.columns[0].tailRow = 0
-    rain.columns[0].glyphs = @[24]
+    rain.columns[0].glyphs = @[MatrixGlyphs.high]
 
     var normal = newSeq[uint32](8 * 16)
     var scaled = newSeq[uint32](16 * 32)
@@ -110,7 +113,7 @@ suite "matrix":
     var rain = initMatrixRain(1, 1)
     rain.columns[0].headRow = 0
     rain.columns[0].tailRow = 0
-    rain.columns[0].glyphs = @[24]
+    rain.columns[0].glyphs = @[MatrixGlyphs.high]
 
     let width = renderer.font.cellWidth
     let height = renderer.font.cellHeight
