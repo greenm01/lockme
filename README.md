@@ -35,19 +35,24 @@ new one from scratch &mdash; and because I dig Nim.
 
 ## Install build dependencies
 
-`lockme` needs Nim/Nimble, a C toolchain, and development headers for
-Wayland, Wayland EGL, EGL/GLESv2, xkbcommon, PAM, FreeType, and fontconfig.
+`lockme` needs Nim/Nimble, a C toolchain, `pkg-config`, the Nimble package
+`nimkdl >= 2.1.0`, and development headers for Wayland, Wayland EGL, EGL,
+OpenGL ES 3, xkbcommon, PAM, FreeType, and fontconfig. The OpenGL ES link
+dependency is discovered through the standard `glesv2` pkg-config module, even
+though the renderer includes GLES3 headers.
 
 Void Linux:
 
 ```sh
-sudo xbps-install -Sy nim nimble base-devel wayland-devel libglvnd-devel libxkbcommon-devel pam-devel freetype-devel fontconfig-devel pkg-config
+sudo xbps-install -Sy nim nimble base-devel pkg-config wayland-devel libglvnd-devel libxkbcommon-devel pam-devel freetype-devel fontconfig-devel
+nimble install -y nimkdl
 ```
 
 Arch Linux:
 
 ```sh
 sudo pacman -S --needed nim nimble base-devel wayland libglvnd libxkbcommon pam freetype2 fontconfig pkgconf
+nimble install -y nimkdl
 ```
 
 Debian/Ubuntu:
@@ -55,6 +60,7 @@ Debian/Ubuntu:
 ```sh
 sudo apt update
 sudo apt install nim nimble build-essential libwayland-dev libegl-dev libgles-dev libxkbcommon-dev libpam0g-dev libfreetype-dev libfontconfig-dev pkg-config
+nimble install -y nimkdl
 ```
 
 ## Build
@@ -62,10 +68,13 @@ sudo apt install nim nimble build-essential libwayland-dev libegl-dev libgles-de
 Build dependencies:
 
 - Nim `2.2.0` or newer
+- Nimble package `nimkdl >= 2.1.0`
 - a C compiler
 - `pkg-config`
 - development packages for `wayland-client`, `xkbcommon`, `pam`,
   `freetype2`, `fontconfig`, `egl`, `glesv2`, and `wayland-egl`
+- OpenGL ES 3 headers, normally provided by the same development package
+  that provides `glesv2`
 
 Protocol refresh dependency:
 
