@@ -6,6 +6,14 @@ suite "matrix":
   test "bitmap fallback glyph table matches matrix glyph set":
     check Font8x16.len == MatrixGlyphs.len
 
+  test "glyph atlas uses matrix glyph set":
+    let renderer = MatrixRenderer(kind: mrBitmap, scale: 2)
+    let atlas = buildMatrixGlyphAtlas(renderer)
+    check atlas.glyphCount == MatrixGlyphs.len
+    check atlas.width == atlas.cellWidth * MatrixGlyphs.len
+    check atlas.height == atlas.cellHeight
+    check atlas.pixels.len == atlas.width * atlas.height
+
   test "zero-height rain is safe":
     var rain = initMatrixRain(2, 0)
     rain.advance()

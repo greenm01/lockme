@@ -2,6 +2,7 @@ import std/os
 
 import lockme/cli
 import lockme/config
+import lockme/preview
 import lockme/wayland
 
 when isMainModule:
@@ -14,7 +15,11 @@ when isMainModule:
       echo Version
       quit(0)
     opts.loadConfig()
-    if opts.checkProtocols:
+    if opts.devWindow:
+      if not opts.devMode:
+        raise newException(ValueError, "--dev-window requires --dev-mode")
+      runDevWindow(opts)
+    elif opts.checkProtocols:
       checkProtocols(opts)
     else:
       runLock(opts)

@@ -22,6 +22,12 @@ suite "cli":
     check opts.devMode
     check cfDevMode in opts.setFlags
 
+  test "--dev-window enables preview window":
+    let opts = parseOptions(@["--dev-mode", "--dev-window"])
+    check opts.devMode
+    check opts.devWindow
+    check cfDevWindow in opts.setFlags
+
   test "--allow-empty-password disables ignore":
     let opts = parseOptions(@["--allow-empty-password"])
     check not opts.ignoreEmptyPassword
@@ -92,6 +98,10 @@ suite "cli":
     check opts.matrixFontPath == MatrixFontPathDefault
     check opts.matrixFontSize == MatrixFontSizeDefault
     check opts.matrixLineHeight == MatrixLineHeightDefault
+    check opts.matrixFallSpeed == MatrixFallSpeedDefault
+    check opts.matrixCycleSpeed == MatrixCycleSpeedDefault
+    check opts.matrixRaindropLength == MatrixRaindropLengthDefault
+    check opts.matrixBrightnessDecay == MatrixBrightnessDecayDefault
 
   test "setFlags empty when no overrides":
     let opts = parseOptions(@[])

@@ -7,6 +7,7 @@ const char *lockme_iface_name_wl_shm(void) { return wl_shm_interface.name; }
 const char *lockme_iface_name_ext_session_lock_manager_v1(void) { return ext_session_lock_manager_v1_interface.name; }
 const char *lockme_iface_name_wp_viewporter(void) { return wp_viewporter_interface.name; }
 const char *lockme_iface_name_wp_single_pixel_buffer_manager_v1(void) { return wp_single_pixel_buffer_manager_v1_interface.name; }
+const char *lockme_iface_name_xdg_wm_base(void) { return xdg_wm_base_interface.name; }
 
 void *lockme_registry_bind_wl_compositor(struct wl_registry *registry, uint32_t name, uint32_t version) {
 	return wl_registry_bind(registry, name, &wl_compositor_interface, version);
@@ -36,6 +37,10 @@ void *lockme_registry_bind_wp_single_pixel_buffer_manager_v1(struct wl_registry 
 	return wl_registry_bind(registry, name, &wp_single_pixel_buffer_manager_v1_interface, version);
 }
 
+void *lockme_registry_bind_xdg_wm_base(struct wl_registry *registry, uint32_t name, uint32_t version) {
+	return wl_registry_bind(registry, name, &xdg_wm_base_interface, version);
+}
+
 int lockme_wl_registry_add_listener(struct wl_registry *registry, const void *listener, void *data) {
 	return wl_registry_add_listener(registry, (const struct wl_registry_listener *) listener, data);
 }
@@ -62,6 +67,18 @@ int lockme_ext_session_lock_v1_add_listener(struct ext_session_lock_v1 *lock, co
 
 int lockme_ext_session_lock_surface_v1_add_listener(struct ext_session_lock_surface_v1 *surface, const void *listener, void *data) {
 	return ext_session_lock_surface_v1_add_listener(surface, (const struct ext_session_lock_surface_v1_listener *) listener, data);
+}
+
+int lockme_xdg_wm_base_add_listener(struct xdg_wm_base *wm_base, const void *listener, void *data) {
+	return xdg_wm_base_add_listener(wm_base, (const struct xdg_wm_base_listener *) listener, data);
+}
+
+int lockme_xdg_surface_add_listener(struct xdg_surface *surface, const void *listener, void *data) {
+	return xdg_surface_add_listener(surface, (const struct xdg_surface_listener *) listener, data);
+}
+
+int lockme_xdg_toplevel_add_listener(struct xdg_toplevel *toplevel, const void *listener, void *data) {
+	return xdg_toplevel_add_listener(toplevel, (const struct xdg_toplevel_listener *) listener, data);
 }
 
 struct wl_surface *lockme_wl_compositor_create_surface(struct wl_compositor *compositor) {
@@ -115,3 +132,19 @@ struct wp_viewport *lockme_wp_viewporter_get_viewport(struct wp_viewporter *view
 void lockme_wp_viewporter_destroy(struct wp_viewporter *viewporter) { wp_viewporter_destroy(viewporter); }
 void lockme_wp_viewport_destroy(struct wp_viewport *viewport) { wp_viewport_destroy(viewport); }
 void lockme_wp_viewport_set_destination(struct wp_viewport *viewport, int32_t width, int32_t height) { wp_viewport_set_destination(viewport, width, height); }
+
+void lockme_xdg_wm_base_destroy(struct xdg_wm_base *wm_base) { xdg_wm_base_destroy(wm_base); }
+void lockme_xdg_wm_base_pong(struct xdg_wm_base *wm_base, uint32_t serial) { xdg_wm_base_pong(wm_base, serial); }
+struct xdg_surface *lockme_xdg_wm_base_get_xdg_surface(struct xdg_wm_base *wm_base, struct wl_surface *surface) { return xdg_wm_base_get_xdg_surface(wm_base, surface); }
+void lockme_xdg_surface_destroy(struct xdg_surface *surface) { xdg_surface_destroy(surface); }
+void lockme_xdg_surface_ack_configure(struct xdg_surface *surface, uint32_t serial) { xdg_surface_ack_configure(surface, serial); }
+void lockme_xdg_surface_set_window_geometry(struct xdg_surface *surface, int32_t x, int32_t y, int32_t width, int32_t height) {
+	xdg_surface_set_window_geometry(surface, x, y, width, height);
+}
+struct xdg_toplevel *lockme_xdg_surface_get_toplevel(struct xdg_surface *surface) { return xdg_surface_get_toplevel(surface); }
+void lockme_xdg_toplevel_destroy(struct xdg_toplevel *toplevel) { xdg_toplevel_destroy(toplevel); }
+void lockme_xdg_toplevel_set_title(struct xdg_toplevel *toplevel, const char *title) { xdg_toplevel_set_title(toplevel, title); }
+void lockme_xdg_toplevel_set_app_id(struct xdg_toplevel *toplevel, const char *app_id) { xdg_toplevel_set_app_id(toplevel, app_id); }
+void lockme_xdg_toplevel_set_min_size(struct xdg_toplevel *toplevel, int32_t width, int32_t height) {
+	xdg_toplevel_set_min_size(toplevel, width, height);
+}

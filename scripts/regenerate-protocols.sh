@@ -22,3 +22,4 @@ generate() {
 generate ext-session-lock-v1 ext-session-lock-v1
 generate single-pixel-buffer-v1 single-pixel-buffer-v1
 generate viewporter viewporter
+generate xdg-shell xdg-shell

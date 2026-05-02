@@ -3,6 +3,7 @@ import std/[monotimes, posix, times]
 import ./auth
 import ./cli
 import ./matrix
+import ./matrix_gpu
 import ./matrix_render
 import ./password
 
@@ -126,6 +127,8 @@ type
     width: int32
     height: int32
     matrixRain: MatrixRain
+    matrixGpu: MatrixGpuRenderer
+    matrixGpuUnavailable: bool
     matrixBuffers: array[2, MatrixBuffer]
     matrixNextBuffer: int
 
@@ -157,6 +160,7 @@ type
     auth: AuthConnection
     matrixEnabled: bool
     matrixRenderer: MatrixRenderer
+    matrixAtlas: MatrixGlyphAtlas
     matrixClockStart: MonoTime
     matrixTicker: MatrixTicker
     failReturnPending: bool
@@ -311,6 +315,9 @@ proc wantsMatrix(lock: Lock): bool =
   lock.matrixEnabled and lock.color.kind == ckInit and lock.password.len == 0
 
 proc destroyMatrixBuffers(output: Output) =
+  if not output.matrixGpu.isNil:
+    output.matrixGpu.close()
+    output.matrixGpu = nil
   for buf in mitems(output.matrixBuffers):
     if not buf.data.isNil:
       discard munmap(buf.data, buf.width * buf.height * 4)
@@ -318,11 +325,44 @@ proc destroyMatrixBuffers(output: Output) =
       wlBufferDestroy(buf.buffer)
     buf = MatrixBuffer()
   output.matrixNextBuffer = 0
+  output.matrixGpuUnavailable = false
+
+proc createMatrixGpu(output: Output): bool =
+  let lock = output.lock
+  if not lock.matrixEnabled or output.surface.isNil or output.width <= 0 or output.height <= 0:
+    return false
+  if output.matrixGpuUnavailable:
+    return false
+  if output.matrixGpu.isNil:
+    output.matrixGpu = initMatrixGpuRenderer(
+      cast[pointer](lock.display),
+      cast[pointer](output.surface),
+      int(output.width),
+      int(output.height),
+      lock.matrixAtlas
+    )
+    if output.matrixGpu.isNil:
+      output.logMatrixFailure("GPU renderer unavailable: " & matrixGpuLastError())
+      output.matrixGpuUnavailable = true
+      return false
+  elif not output.matrixGpu.resize(int(output.width), int(output.height)):
+    output.logMatrixFailure("GPU renderer resize failed: " & matrixGpuLastError())
+    output.matrixGpu.close()
+    output.matrixGpu = nil
+    return false
+  true
 
 proc createMatrixShmBuffers(output: Output) =
   let lock = output.lock
   output.destroyMatrixBuffers()
-  if not lock.matrixEnabled or lock.shm.isNil:
+  if not lock.matrixEnabled:
+    return
+
+  if output.createMatrixGpu():
+    return
+
+  if lock.shm.isNil:
+    output.logMatrixFailure("wl_shm unavailable for CPU renderer fallback")
     return
 
   let geometry = matrixRenderGeometry(output.width, output.height, lock.matrixRenderer)
@@ -418,7 +458,18 @@ proc hasMatrixBuffers(output: Output): bool =
       return true
   false
 
+proc matrixNowMs(lock: Lock; now: MonoTime): int64
+
 proc attachMatrixFrame(output: Output): bool =
+  if not output.matrixGpu.isNil:
+    viewportSetDestination(output.viewport, output.width, output.height)
+    return output.matrixGpu.render(
+      output.lock.matrixNowMs(getMonoTime()),
+      output.lock.opts.matrixFallSpeed,
+      output.lock.opts.matrixCycleSpeed,
+      output.lock.opts.matrixRaindropLength,
+      output.lock.opts.matrixBrightnessDecay
+    )
   if not output.hasMatrixBuffers():
     return false
   for offset in 0 ..< output.matrixBuffers.len:
@@ -791,7 +842,6 @@ proc checkRequired(lock: Lock) =
   if lock.lockManager.isNil: fatal("ext_session_lock_manager_v1 not advertised")
   if lock.viewporter.isNil: fatal("wp_viewporter not advertised")
   if lock.pixelManager.isNil and lock.shm.isNil: fatal("neither wp_single_pixel_buffer_manager_v1 nor wl_shm is advertised")
-  if lock.matrixEnabled and lock.shm.isNil: fatal("--matrix requires wl_shm")
 
 proc initListeners() =
   registryListener = WlRegistryListener(global: registryGlobal, globalRemove: registryGlobalRemove)
@@ -870,6 +920,7 @@ proc connectAndDiscover(opts: Options): Lock =
     )
     if not result.matrixRenderer.usesFontRenderer():
       stderr.writeLine("lockme: warning: failed to initialize antialiased matrix font renderer; using bitmap fallback")
+    result.matrixAtlas = buildMatrixGlyphAtlas(result.matrixRenderer)
   result.display = wl_display_connect(nil)
   if result.display.isNil:
     fatal("failed to connect to a Wayland compositor")

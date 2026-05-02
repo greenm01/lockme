@@ -16,6 +16,12 @@ type
     scale*: int
     font*: MatrixFont
 
+  MatrixGlyphAtlas* = object
+    cellWidth*, cellHeight*: int
+    width*, height*: int
+    glyphCount*: int
+    pixels*: seq[uint8]
+
 const
   GlyphWidth = 8
   GlyphHeight = 16
@@ -73,6 +79,62 @@ proc drawGlyph*(data: ptr UncheckedArray[uint32], width, height: int, x, y: int,
             let tx = px + sx
             if tx < 0 or tx >= width: continue
             data[ty * width + tx] = color
+
+proc drawBitmapGlyphAlpha(atlas: var MatrixGlyphAtlas; glyphIdx, cellX: int; scale = 1) =
+  if glyphIdx < 0 or glyphIdx >= Font8x16.len: return
+  let cellScale = max(scale, 1)
+  let glyph = Font8x16[glyphIdx]
+  for row in 0 ..< GlyphHeight:
+    let bits = glyph[row]
+    for col in 0 ..< GlyphWidth:
+      if (bits and (0x80'u8 shr col)) == 0:
+        continue
+      let px = cellX + col * cellScale
+      let py = row * cellScale
+      for sy in 0 ..< cellScale:
+        let ty = py + sy
+        if ty < 0 or ty >= atlas.height: continue
+        for sx in 0 ..< cellScale:
+          let tx = px + sx
+          if tx < cellX or tx >= cellX + atlas.cellWidth: continue
+          atlas.pixels[ty * atlas.width + tx] = 255'u8
+
+proc drawFontGlyphAlpha(atlas: var MatrixGlyphAtlas; cellX: int; baseline: int; glyph: MatrixGlyphBitmap) =
+  let advancePad = max(0, (atlas.cellWidth - glyph.advance) div 2)
+  let originX = cellX + advancePad + glyph.left
+  let originY = baseline - glyph.top
+  let cellRight = cellX + atlas.cellWidth
+  for row in 0 ..< glyph.height:
+    let ty = originY + row
+    if ty < 0 or ty >= atlas.cellHeight:
+      continue
+    for col in 0 ..< glyph.width:
+      let tx = originX + col
+      if tx < cellX or tx >= cellRight:
+        continue
+      let alpha = glyph.pixels[row * glyph.width + col]
+      if alpha != 0:
+        atlas.pixels[ty * atlas.width + tx] = alpha
+
+proc buildMatrixGlyphAtlas*(renderer: MatrixRenderer): MatrixGlyphAtlas =
+  result.glyphCount = MatrixGlyphs.len
+  if renderer.usesFontRenderer():
+    result.cellWidth = renderer.font.cellWidth
+    result.cellHeight = renderer.font.cellHeight
+    result.width = result.cellWidth * result.glyphCount
+    result.height = result.cellHeight
+    result.pixels = newSeq[uint8](result.width * result.height)
+    for glyphIdx, glyph in renderer.font.glyphs:
+      result.drawFontGlyphAlpha(glyphIdx * result.cellWidth, renderer.font.baseline, glyph)
+  else:
+    let scale = if renderer.isNil: 1 else: renderer.scale
+    result.cellWidth = GlyphWidth * max(scale, 1)
+    result.cellHeight = GlyphHeight * max(scale, 1)
+    result.width = result.cellWidth * result.glyphCount
+    result.height = result.cellHeight
+    result.pixels = newSeq[uint8](result.width * result.height)
+    for glyphIdx in 0 ..< result.glyphCount:
+      result.drawBitmapGlyphAlpha(glyphIdx, glyphIdx * result.cellWidth, scale)
 
 proc renderMatrix*(rain: MatrixRain, data: ptr UncheckedArray[uint32], width, height: int, scale = 1) =
   # Clear buffer to black

@@ -32,25 +32,25 @@ new one from scratch &mdash; and because I dig Nim.
 ## Install build dependencies
 
 `lockme` needs Nim/Nimble, a C toolchain, and development headers for
-Wayland, xkbcommon, PAM, FreeType, and fontconfig.
+Wayland, Wayland EGL, EGL/GLESv2, xkbcommon, PAM, FreeType, and fontconfig.
 
 Void Linux:
 
 ```sh
-sudo xbps-install -Sy nim nimble base-devel wayland-devel libxkbcommon-devel pam-devel freetype-devel fontconfig-devel pkg-config
+sudo xbps-install -Sy nim nimble base-devel wayland-devel libglvnd-devel libxkbcommon-devel pam-devel freetype-devel fontconfig-devel pkg-config
 ```
 
 Arch Linux:
 
 ```sh
-sudo pacman -S --needed nim nimble base-devel wayland libxkbcommon pam freetype2 fontconfig pkgconf
+sudo pacman -S --needed nim nimble base-devel wayland libglvnd libxkbcommon pam freetype2 fontconfig pkgconf
 ```
 
 Debian/Ubuntu:
 
 ```sh
 sudo apt update
-sudo apt install nim nimble build-essential libwayland-dev libxkbcommon-dev libpam0g-dev libfreetype-dev libfontconfig-dev pkg-config
+sudo apt install nim nimble build-essential libwayland-dev libegl-dev libgles-dev libxkbcommon-dev libpam0g-dev libfreetype-dev libfontconfig-dev pkg-config
 ```
 
 ## Build
@@ -61,7 +61,7 @@ Build dependencies:
 - a C compiler
 - `pkg-config`
 - development packages for `wayland-client`, `xkbcommon`, `pam`,
-  `freetype2`, and `fontconfig`
+  `freetype2`, `fontconfig`, `egl`, `glesv2`, and `wayland-egl`
 
 Protocol refresh dependency:
 
@@ -115,6 +115,7 @@ Their XML sources are vendored in `src/lockme/protocols/xml`:
 - `ext-session-lock-v1` from `wayland-protocols/staging`
 - `single-pixel-buffer-v1` from `wayland-protocols/staging`
 - `viewporter` from `wayland-protocols/stable`
+- `xdg-shell` from `wayland-protocols/stable`
 
 To refresh the generated C/header files after updating the XML:
 
@@ -141,6 +142,21 @@ For development only, `lockme --dev-mode` makes `Esc` unlock and exit cleanly
 without talking to PAM. This is intentionally insecure and should not be used
 for a real screen lock, but it provides a compositor-safe escape hatch while
 testing lockme itself.
+
+For screenshots while developing the Matrix renderer, use:
+
+```sh
+lockme --dev-mode --dev-window
+```
+
+This opens the Matrix rain in a normal Wayland window and does not lock the
+session or start PAM.
+
+Matrix rain is rendered through a Sokol/EGL/GLES path when available. The glyph
+atlas is generated from the configured font and the built-in Koine Greek Matrix
+glyph list; if GPU setup fails, lockme warns and falls back to the existing
+software renderer. The GPU rain pipeline adapts MIT-licensed shader logic from
+Rezmason's Matrix rain renderer.
 
 The v1 UI follows waylock's minimal model: the lock surface is a solid color
 at rest, typing rotates the surface through a configurable input palette,
@@ -186,7 +202,7 @@ are accepted in the config file (the CLI requires the `0x` form).
 The release build uses size-oriented flags (`--opt:size --mm:orc
 -d:useMalloc -flto -Wl,--gc-sections -Wl,-s`) so that the KDL parser
 and its transitive dependencies (`bigints`, `unicodedb`) do not bloat
-the binary. The current stripped output is ~221 KB. Run `nimble
+the binary. The current stripped output is ~430 KB. Run `nimble
 sizecheck` to print the size of your build.
 
 ## Platform requirements

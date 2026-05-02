@@ -114,6 +114,10 @@ matrix-font-family "JetBrains Mono"
 matrix-font-path "/tmp/matrix.ttf"
 matrix-font-size 20
 matrix-line-height 28
+matrix-fall-speed 0.4
+matrix-cycle-speed 0.05
+matrix-raindrop-length 1.25
+matrix-brightness-decay 1.5
 """)
     defer: removeFile(path)
     var opts = defaultOptions()
@@ -125,6 +129,10 @@ matrix-line-height 28
     check opts.matrixFontPath == "/tmp/matrix.ttf"
     check opts.matrixFontSize == 20
     check opts.matrixLineHeight == 28
+    check opts.matrixFallSpeed == 0.4
+    check opts.matrixCycleSpeed == 0.05
+    check opts.matrixRaindropLength == 1.25
+    check opts.matrixBrightnessDecay == 1.5
 
   test "CLI matrix wins over config":
     let path = getTempDir() / "lockme_test_matrix_override.kdl"
@@ -165,6 +173,15 @@ matrix-line-height 28
     var opts = defaultOptions()
     expect ValueError:
       opts.applyConfigFile(path)
+
+  test "matrix timing ranges are validated":
+    for name in ["matrix-fall-speed", "matrix-cycle-speed", "matrix-raindrop-length", "matrix-brightness-decay"]:
+      let path = getTempDir() / ("lockme_test_" & name & "_bad.kdl")
+      writeFile(path, name & " 0\n")
+      defer: removeFile(path)
+      var opts = defaultOptions()
+      expect ValueError:
+        opts.applyConfigFile(path)
 
   test "missing --config path raises":
     var opts = parseOptions(@["--config", "/nonexistent/lockme.kdl"])

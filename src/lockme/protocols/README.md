@@ -9,6 +9,7 @@ The XML files in `xml/` are vendored from `wayland-protocols`:
 - `staging/ext-session-lock/ext-session-lock-v1.xml`
 - `staging/single-pixel-buffer/single-pixel-buffer-v1.xml`
 - `stable/viewporter/viewporter.xml`
+- `stable/xdg-shell/xdg-shell.xml`
 
 To refresh the generated files after updating the XML sources:
 

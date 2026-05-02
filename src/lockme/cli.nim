@@ -1,12 +1,16 @@
 import std/[options, parseutils, strutils]
 
 const Version* = "0.1.0"
-const MatrixFrameMsDefault* = 80
+const MatrixFrameMsDefault* = 40
 const MatrixCellScaleDefault* = 2
 const MatrixFontFamilyDefault* = "monospace"
 const MatrixFontPathDefault* = ""
 const MatrixFontSizeDefault* = 18
 const MatrixLineHeightDefault* = 24
+const MatrixFallSpeedDefault* = 0.3
+const MatrixCycleSpeedDefault* = 0.03
+const MatrixRaindropLengthDefault* = 0.75
+const MatrixBrightnessDecayDefault* = 1.0
 
 type
   LogLevel* = enum
@@ -27,6 +31,7 @@ type
     cfConfigPath
     cfNoConfig
     cfMatrix
+    cfDevWindow
 
   Options* = object
     forkOnLock*: bool
@@ -44,12 +49,17 @@ type
     configPath*: Option[string]
     noConfig*: bool
     matrix*: bool
+    devWindow*: bool
     matrixFrameMs*: int
     matrixCellScale*: int
     matrixFontFamily*: string
     matrixFontPath*: string
     matrixFontSize*: int
     matrixLineHeight*: int
+    matrixFallSpeed*: float
+    matrixCycleSpeed*: float
+    matrixRaindropLength*: float
+    matrixBrightnessDecay*: float
     setFlags*: set[CliFlag]
 
 const Usage* = """usage: lockme [options]
@@ -64,6 +74,8 @@ const Usage* = """usage: lockme [options]
                                    ignore Enter on empty buffer).
   --dev-mode                       Insecure development mode: Esc unlocks and
                                    exits without PAM authentication.
+  --dev-window                     With --dev-mode, render the Matrix preview
+                                   in a normal Wayland window.
   --check-protocols                Check required Wayland globals without locking.
   --matrix                         Enable matrix screensaver when idle.
 
@@ -93,7 +105,11 @@ proc defaultOptions*(): Options =
     matrixFontFamily: MatrixFontFamilyDefault,
     matrixFontPath: MatrixFontPathDefault,
     matrixFontSize: MatrixFontSizeDefault,
-    matrixLineHeight: MatrixLineHeightDefault
+    matrixLineHeight: MatrixLineHeightDefault,
+    matrixFallSpeed: MatrixFallSpeedDefault,
+    matrixCycleSpeed: MatrixCycleSpeedDefault,
+    matrixRaindropLength: MatrixRaindropLengthDefault,
+    matrixBrightnessDecay: MatrixBrightnessDecayDefault
   )
 
 proc parseColor*(raw: string): uint32 =
@@ -142,6 +158,9 @@ proc parseOptions*(args: seq[string]): Options =
     of "--dev-mode":
       result.devMode = true
       result.setFlags.incl cfDevMode
+    of "--dev-window":
+      result.devWindow = true
+      result.setFlags.incl cfDevWindow
     of "--check-protocols":
       result.checkProtocols = true
       result.setFlags.incl cfCheckProtocols

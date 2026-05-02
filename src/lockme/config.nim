@@ -20,6 +20,14 @@ const
   MatrixFontSizeMax* = 96
   MatrixLineHeightMin* = 6
   MatrixLineHeightMax* = 160
+  MatrixFallSpeedMin* = 0.01
+  MatrixFallSpeedMax* = 5.0
+  MatrixCycleSpeedMin* = 0.001
+  MatrixCycleSpeedMax* = 2.0
+  MatrixRaindropLengthMin* = 0.05
+  MatrixRaindropLengthMax* = 5.0
+  MatrixBrightnessDecayMin* = 0.1
+  MatrixBrightnessDecayMax* = 5.0
 
 proc parseColorString*(raw: string): uint32 =
   ## Accepts both ``0xRRGGBB`` and ``#RRGGBB`` hex literals.
@@ -68,6 +76,15 @@ proc parseLogLevelStrict(raw: string): LogLevel =
   of "debug": llDebug
   else:
     raise newException(ValueError, "invalid log-level '" & raw & "'")
+
+proc parseNumberArg(value: KdlVal; name: string): float =
+  try:
+    return value.kFloat()
+  except CatchableError:
+    try:
+      return float(value.kInt())
+    except CatchableError:
+      raise newException(ValueError, name & " requires a number value")
 
 proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
   ## Applies values from ``doc`` to ``opts`` only for fields that the CLI
@@ -185,6 +202,50 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
       raise newException(ValueError, "matrix-line-height must be between " &
         $MatrixLineHeightMin & " and " & $MatrixLineHeightMax)
     opts.matrixLineHeight = int(value)
+
+  let matrixFallSpeedNode = doc.findNode("matrix-fall-speed")
+  if matrixFallSpeedNode.isSome:
+    let n = matrixFallSpeedNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "matrix-fall-speed requires a number value")
+    let value = parseNumberArg(n.args[0], "matrix-fall-speed")
+    if value < MatrixFallSpeedMin or value > MatrixFallSpeedMax:
+      raise newException(ValueError, "matrix-fall-speed must be between " &
+        $MatrixFallSpeedMin & " and " & $MatrixFallSpeedMax)
+    opts.matrixFallSpeed = value
+
+  let matrixCycleSpeedNode = doc.findNode("matrix-cycle-speed")
+  if matrixCycleSpeedNode.isSome:
+    let n = matrixCycleSpeedNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "matrix-cycle-speed requires a number value")
+    let value = parseNumberArg(n.args[0], "matrix-cycle-speed")
+    if value < MatrixCycleSpeedMin or value > MatrixCycleSpeedMax:
+      raise newException(ValueError, "matrix-cycle-speed must be between " &
+        $MatrixCycleSpeedMin & " and " & $MatrixCycleSpeedMax)
+    opts.matrixCycleSpeed = value
+
+  let matrixRaindropLengthNode = doc.findNode("matrix-raindrop-length")
+  if matrixRaindropLengthNode.isSome:
+    let n = matrixRaindropLengthNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "matrix-raindrop-length requires a number value")
+    let value = parseNumberArg(n.args[0], "matrix-raindrop-length")
+    if value < MatrixRaindropLengthMin or value > MatrixRaindropLengthMax:
+      raise newException(ValueError, "matrix-raindrop-length must be between " &
+        $MatrixRaindropLengthMin & " and " & $MatrixRaindropLengthMax)
+    opts.matrixRaindropLength = value
+
+  let matrixBrightnessDecayNode = doc.findNode("matrix-brightness-decay")
+  if matrixBrightnessDecayNode.isSome:
+    let n = matrixBrightnessDecayNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "matrix-brightness-decay requires a number value")
+    let value = parseNumberArg(n.args[0], "matrix-brightness-decay")
+    if value < MatrixBrightnessDecayMin or value > MatrixBrightnessDecayMax:
+      raise newException(ValueError, "matrix-brightness-decay must be between " &
+        $MatrixBrightnessDecayMin & " and " & $MatrixBrightnessDecayMax)
+    opts.matrixBrightnessDecay = value
 
 proc applyConfigFile*(opts: var Options; path: string) =
   ## Reads and applies a KDL config file. Raises ``ValueError`` with the
