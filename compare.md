@@ -159,10 +159,12 @@ are now part of the display path. The main security boundary remains
 the forked PAM child and protected password buffer, so the Matrix
 renderer does not run in the auth process.
 
-Where lockme is weaker: no third-party review, no fuzzing, no CI, no
-distro packaging, single author, and now a new GPU renderer that needs
-more time under real compositors. swaylock and waylock have been
-deployed for years across thousands of installs. lockme has not.
+Where lockme is weaker: no formal third-party human review, no fuzzing,
+no CI, no distro packaging, single author, and now a new GPU renderer
+that needs more time under real compositors. The current AI-assisted
+review notes and recent fix history are recorded in [audit.md](audit.md),
+but that is not a substitute for years of field exposure. swaylock and
+waylock have been deployed across thousands of installs. lockme has not.
 Years of accidental field testing is its own kind of audit, and lockme
 has not had it yet.
 
@@ -173,8 +175,9 @@ In rough order of "would I trust this on my own machine":
 1. **lockme** for the security-conscious single-user Linux workstation,
    given its hardening goes beyond the others and its surface is
    still deliberately narrow around authentication. The disclaimer is
-   real: no external review, single author, a new GPU display path, and
-   no field deployment yet.
+   real: no formal third-party human review, single author, a new GPU
+   display path, and no field deployment yet. See [audit.md](audit.md)
+   for the current review log.
 2. **waylock** for the same use case if you want a project that has
    been deployed by other folks for several years. You give up
    `MADV_DONTDUMP`-on-the-process and the process-wide hardening, but
@@ -204,6 +207,6 @@ Roughly in priority:
    `Dumpable: 0` after startup.
 4. A core-dump test: `kill -SEGV` a debug build and grep the dump
    for keystroke bytes.
-5. Get a second pair of eyes on the C shim layer, the Sokol/EGL Matrix
-   renderer, and the FFI declarations.
+5. Get independent human review of the C shim layer, the Sokol/EGL
+   Matrix renderer, and the FFI declarations.
 6. Reproducible builds and signed releases, eventually.

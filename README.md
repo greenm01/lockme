@@ -260,6 +260,10 @@ desktop mappings or restrictive limits. That best-effort failure is reported
 only at `--log-level debug`; the locker continues with the password buffer's
 own mandatory `mlock` still active.
 
+See [audit.md](audit.md) for the running security and performance review log,
+including the recent PAM, Matrix renderer, signal handling, and SHM sizing
+checks.
+
 ## PAM stack
 
 `lockme` performs authentication through PAM. The shipped default
