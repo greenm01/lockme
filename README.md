@@ -44,14 +44,16 @@ though the renderer includes GLES3 headers.
 Void Linux:
 
 ```sh
-sudo xbps-install -Sy nim nimble base-devel pkg-config wayland-devel libglvnd-devel libxkbcommon-devel pam-devel freetype-devel fontconfig-devel
+sudo xbps-install -Sy nim base-devel pkg-config wayland-devel libglvnd-devel libxkbcommon-devel pam-devel freetype-devel fontconfig-devel
 nimble install -y nimkdl
 ```
+
+Void, Arch Linux, Debian, and Ubuntu package `nimble` with `nim`.
 
 Arch Linux:
 
 ```sh
-sudo pacman -S --needed nim nimble base-devel wayland libglvnd libxkbcommon pam freetype2 fontconfig pkgconf
+sudo pacman -S --needed nim base-devel wayland libglvnd libxkbcommon pam freetype2 fontconfig pkgconf
 nimble install -y nimkdl
 ```
 
@@ -59,7 +61,7 @@ Debian/Ubuntu:
 
 ```sh
 sudo apt update
-sudo apt install nim nimble build-essential libwayland-dev libegl-dev libgles-dev libxkbcommon-dev libpam0g-dev libfreetype-dev libfontconfig-dev pkg-config
+sudo apt install nim build-essential libwayland-dev libegl-dev libgles-dev libxkbcommon-dev libpam0g-dev libfreetype-dev libfontconfig-dev pkg-config
 nimble install -y nimkdl
 ```
 
