@@ -1015,7 +1015,7 @@ proc runLock*(opts: Options) =
   let lock = connectAndDiscover(opts)
   defer: lock.deinit()
   lock.checkRequired()
-  lock.auth = forkAuthChild()
+  lock.auth = forkAuthChild(opts.logLevel == llDebug)
   applyParentNoNewPrivs()
   lock.createBuffers()
   if not lock.pixelManager.isNil:
@@ -1069,6 +1069,7 @@ proc runLock*(opts: Options) =
       var ok = false
       if not readAuthResult(lock.auth, ok):
         fatal("failed to read auth result")
+      lock.logMessage(llDebug, "auth child result: " & (if ok: "success" else: "failure"))
       if ok:
         sessionLockUnlockAndDestroy(lock.sessionLock)
         lock.sessionLock = nil

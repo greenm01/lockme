@@ -1,8 +1,7 @@
 # Default lockme PAM stack: minimal, auditable, distribution-independent.
 #
-# This file contains an explicit auth chain of pam_unix (password check)
-# plus pam_faillock (bruteforce backoff). Faillock tunables (deny=,
-# unlock_time=, etc.) are inherited from /etc/security/faillock.conf.
+# This file contains an explicit auth chain of pam_faildelay (bruteforce
+# friction without account lockout) plus pam_unix (password check).
 #
 # This is the right choice for users who authenticate with a plain Unix
 # password. It does NOT support:
@@ -16,9 +15,7 @@
 # delegates to the distribution's system-auth chain. See the README's
 # "PAM stack" section for details.
 
-auth        required                 pam_faillock.so preauth
-auth        [success=1 default=bad]  pam_unix.so     nullok
-auth        [default=die]            pam_faillock.so authfail
-auth        sufficient               pam_faillock.so authsucc
+auth        optional      pam_faildelay.so delay=2000000
+auth        required      pam_unix.so     nullok
 
 account     required      pam_unix.so

@@ -28,7 +28,7 @@ task installBin, "Install the lockme binary to ~/.local/bin (builds if needed)":
   exec "sh -c 'test -f " & userConfigDest & " || install -Dm644 " &
     configTemplate & " " & userConfigDest & "'"
 
-task installPam, "Install the default PAM file (minimal: pam_unix + pam_faillock; no homed/keyring/fingerprint/smartcard)":
+task installPam, "Install the default PAM file (minimal: pam_faildelay + pam_unix; no faillock/homed/keyring/fingerprint/smartcard)":
   exec "sudo install -m0644 pam.d/lockme /etc/pam.d/lockme"
 
 task installPamFull, "Install the full PAM file (auth include system-auth; enables homed, keyring, fingerprint, smartcard via system-auth)":

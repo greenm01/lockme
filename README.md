@@ -218,9 +218,10 @@ to harden the password buffer and the auth child:
   preventing it from being paged to swap or included in core dumps.
 - `mlockall(2)` on the locker process and auth child to keep transient
   password material on the stack and in libc/PAM internals out of swap. Matrix
-  mode uses `MCL_CURRENT` in the locker to avoid locking unbounded GPU/driver
-  allocations; `--blank` and the auth child use `MCL_CURRENT | MCL_FUTURE`
-  (best-effort; requires sufficient `RLIMIT_MEMLOCK`).
+  mode and the auth child use `MCL_CURRENT` to avoid turning later GPU, driver,
+  or PAM allocations into `RLIMIT_MEMLOCK` failures; `--blank` uses
+  `MCL_CURRENT | MCL_FUTURE` in the locker process (best-effort; requires
+  sufficient `RLIMIT_MEMLOCK`).
 - `explicit_bzero(3)` (glibc/musl) for password clearing that the compiler
   is not permitted to elide.
 - `prctl(PR_SET_DUMPABLE, 0)` on both the parent and the auth child to
@@ -247,9 +248,8 @@ password buffer:
   failed authentication and after each `Backspace`),
 - has its protections re-applied after `--fork-on-lock`.
 
-The auth child also re-applies best-effort `mlockall(MCL_CURRENT |
-MCL_FUTURE)` before initializing PAM, because memory locks are not inherited
-across `fork(2)`.
+The auth child also re-applies best-effort `mlockall(MCL_CURRENT)` before
+initializing PAM, because memory locks are not inherited across `fork(2)`.
 
 With `--fork-on-lock`, the background process additionally redirects
 `stdin`/`stdout`/`stderr` to `/dev/null` to avoid `SIGPIPE` if the parent
@@ -267,18 +267,15 @@ locker continues with the password buffer's own `mlock` still active.
 `pam.d/lockme` is a minimal, auditable, distribution-independent chain:
 
 ```
-auth        required                 pam_faillock.so preauth
-auth        [success=1 default=bad]  pam_unix.so     nullok
-auth        [default=die]            pam_faillock.so authfail
-auth        sufficient               pam_faillock.so authsucc
+auth        optional      pam_faildelay.so delay=2000000
+auth        required      pam_unix.so     nullok
 account     required      pam_unix.so
 ```
 
-This verifies a plain Unix password and applies bruteforce backoff via
-`pam_faillock` (with tunables inherited from
-`/etc/security/faillock.conf`). Most Linux users authenticate this way
-and gain nothing from a larger PAM stack on their screen locker, so
-this is the default.
+This verifies a plain Unix password and applies a two-second failure delay
+without recording faillock tallies or locking the user out after mistyped
+passwords. Most Linux users authenticate this way and gain nothing from a
+larger PAM stack on their screen locker, so this is the default.
 
 The default does NOT enable `pam_systemd_home`, GNOME Keyring or
 KWallet auto-unlock, fingerprint readers, smartcards, or any other
@@ -300,6 +297,10 @@ whatever `system-auth` says it is. To audit it, read
 `auth sufficient pam_permit.so` line, or a `pam_succeed_if` clause that
 bypasses checks for a group) silently affect `lockme` as well, and
 `lockme` cannot defend against this.
+
+For PAM debugging, run `./lockme --log-level debug` from a terminal. Debug
+logging records PAM status codes and messages only; it does not log password
+contents, password length, or prompts.
 
 To revert to the default minimal chain at any time:
 

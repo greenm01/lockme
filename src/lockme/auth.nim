@@ -64,6 +64,10 @@ proc sysconf(name: cint): clong {.importc, header: "<unistd.h>".}
 # space (and so the parent never carries the buffer's allocation).
 var childPassword: PasswordBuffer
 
+proc logPamStatus(debugAuth: bool; pamh: ptr PamHandle; op: string; status: cint) =
+  if debugAuth:
+    stderr.writeLine("lockme: debug: " & op & " status=" & $status & " (" & $pam_strerror(pamh, status) & ")")
+
 proc readExact(fd: cint; p: pointer; len: int): bool =
   var offset = 0
   while offset < len:
@@ -182,14 +186,16 @@ proc closeInheritedFds(keep: openArray[cint]) =
     cursor = cuint(fd) + 1
   closeRange(cursor, high(cuint))
 
-proc authLoop(conn: AuthConnection) {.noreturn.} =
+proc authLoop(conn: AuthConnection; debugAuth: bool) {.noreturn.} =
   # Block ptrace and /proc snooping by other same-UID processes.
   discard prctl(PrSetDumpable, 0.culong, 0.culong, 0.culong, 0.culong)
-  # Parent mlockall state is not inherited across fork(2). Re-apply it
-  # before PAM starts so PAM/libc password temporaries stay out of swap
-  # when RLIMIT_MEMLOCK permits it. The dedicated password buffer below
-  # remains mandatory and fails closed if its own mlock fails.
-  if mlockall(MclCurrent or MclFuture) != 0:
+  # Parent mlockall state is not inherited across fork(2). Re-apply
+  # current-page locking in the auth child, but do not use MCL_FUTURE:
+  # PAM modules can allocate during authentication, and forcing those
+  # future pages under RLIMIT_MEMLOCK can make valid passwords fail.
+  # The dedicated password buffer below remains mandatory and fails
+  # closed if its own mlock fails.
+  if mlockall(MclCurrent) != 0:
     stderr.writeLine("lockme: warning: auth child mlockall failed; PAM password material may be paged to swap (raise RLIMIT_MEMLOCK)")
 
   # Allocate the mlock'd password buffer in the child's address space.
@@ -217,12 +223,14 @@ proc authLoop(conn: AuthConnection) {.noreturn.} =
       quit("lockme: failed to read password from parent", 1)
 
     status = pam_authenticate(pamh, 0)
+    logPamStatus(debugAuth, pamh, "pam_authenticate", status)
     # Always clear, even on success/abort, before any further syscalls.
     childPassword.clear()
 
     if status == PamSuccess:
       discard writeAuthResult(conn, true)
       let credStatus = pam_setcred(pamh, PamReinitializeCred)
+      logPamStatus(debugAuth, pamh, "pam_setcred", credStatus)
       discard pam_end(pamh, credStatus)
       quit(0)
     else:
@@ -231,7 +239,7 @@ proc authLoop(conn: AuthConnection) {.noreturn.} =
         discard pam_end(pamh, status)
         quit(1)
 
-proc forkAuthChild*(): AuthConnection =
+proc forkAuthChild*(debugAuth = false): AuthConnection =
   var parentToChild: array[0..1, cint]
   var childToParent: array[0..1, cint]
 
@@ -247,7 +255,7 @@ proc forkAuthChild*(): AuthConnection =
     discard close(childToParent[0])
     let conn = AuthConnection(readFd: parentToChild[0], writeFd: childToParent[1])
     closeInheritedFds([conn.readFd, conn.writeFd, cint(0), cint(1), cint(2)])
-    authLoop(conn)
+    authLoop(conn, debugAuth)
   else:
     discard close(parentToChild[0])
     discard close(childToParent[1])

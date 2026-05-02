@@ -40,7 +40,7 @@ agreement ends.
 | `mlockall` best effort                | no       | no      | no       | yes (`MCL_CURRENT`; `MCL_CURRENT \| MCL_FUTURE` with `--blank`) |
 | `close_range` in auth child        | no       | no      | n/a      | yes (with fallback) |
 | Default ignores empty Enter        | no       | no      | no       | yes |
-| Default PAM stack                  | `auth include login` | `auth include system-auth` | `auth include login` | `pam_unix` + `pam_faillock` |
+| Default PAM stack                  | `auth include login` | `auth include system-auth` | `auth include login` | `pam_faildelay` + `pam_unix` |
 
 ## swaylock
 
@@ -141,9 +141,10 @@ The process model adds the syscalls waylock left out:
   buffer protections after the fork.
 
 PAM defaults differ too. The shipped `pam.d/lockme` is the explicit
-minimal chain — `pam_unix` + `pam_faillock` with tunables from
-`faillock.conf`. The full `auth include system-auth` chain is
-available as opt-in via `nimble installPamFull` for folks who need
+minimal chain — `pam_faildelay` + `pam_unix`, which slows repeated
+failures without recording faillock tallies or locking out the user.
+The full `auth include system-auth` chain is available as opt-in via
+`nimble installPamFull` for folks who need
 fingerprint, smartcard, homed, or keyring auto-unlock. Empty Enter is
 ignored by default; `--allow-empty-password` opens it back up.
 
