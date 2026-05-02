@@ -21,8 +21,8 @@ toggles between Matrix and a blank screen. Colors and the rest of the runtime
 knobs live in a small KDL 2.0 config file (see [Configuration](#configuration)).
 
 It is small on disk too: a stripped release binary is **~430 KB**,
-roughly an order of magnitude smaller than `waylock` and `hyprlock`
-while shipping more hardening than either. See
+roughly half the size of `hyprlock` and several times smaller than
+`waylock` while shipping more hardening than either. See
 [compare.md](compare.md) for the full security and size comparison
 against `swaylock`, `waylock`, and `hyprlock`.
 
@@ -216,9 +216,11 @@ to harden the password buffer and the auth child:
 
 - `mlock(2)` and `madvise(MADV_DONTDUMP)` on a page-aligned password buffer,
   preventing it from being paged to swap or included in core dumps.
-- `mlockall(MCL_CURRENT | MCL_FUTURE)` on the locker process to keep
-  transient password material on the stack and in libc internals out of
-  swap (best-effort; requires sufficient `RLIMIT_MEMLOCK`).
+- `mlockall(2)` on the locker process to keep transient password material on
+  the stack and in libc internals out of swap. Matrix mode uses `MCL_CURRENT`
+  to avoid locking unbounded GPU/driver allocations; `--blank` uses
+  `MCL_CURRENT | MCL_FUTURE` (best-effort; requires sufficient
+  `RLIMIT_MEMLOCK`).
 - `explicit_bzero(3)` (glibc/musl) for password clearing that the compiler
   is not permitted to elide.
 - `prctl(PR_SET_DUMPABLE, 0)` on both the parent and the auth child to

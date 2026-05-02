@@ -1,6 +1,6 @@
 # lockme vs swaylock, waylock, hyprlock
 
-*April 29, 2026*
+*May 2, 2026*
 
 A side-by-side look at four Wayland screen lockers, written for the user
 who has to pick one and live with it.
@@ -12,13 +12,13 @@ who has to pick one and live with it.
 | swaylock | C        | 1.8.5    | ~820                 | 106 KB          |
 | waylock  | Zig      | 1.7.0-dev (HEAD 9523ce0) | ~1,310 | 1.9 MB        |
 | hyprlock | C++      | 0.9.5    | ~9,330 (whole tree)  | 825 KB          |
-| lockme   | Nim      | 0.1.0    | ~1,200               | 221 KB          |
+| lockme   | Nim      | 0.1.0    | ~1,300               | 430 KB          |
 
 Sizes are the as-shipped binaries on the author's Arch system
 (`/usr/bin/{swaylock,waylock,hyprlock}` from the official packages and
-`nimble build` for lockme). lockme is roughly half the size of
-hyprlock and an order of magnitude smaller than waylock, despite
-shipping more hardening than either.
+`nimble build` for lockme). lockme is still roughly half the size of
+hyprlock and several times smaller than waylock, despite shipping more
+hardening than either.
 
 All four use `ext-session-lock-v1`. All four call PAM. That is where the
 agreement ends.
@@ -37,7 +37,7 @@ agreement ends.
 | `prctl(PR_SET_DUMPABLE, 0)`        | no       | no      | no       | yes (parent + child) |
 | `prctl(PR_SET_NO_NEW_PRIVS, 1)`    | no       | no      | no       | yes (parent after auth fork) |
 | `setrlimit(RLIMIT_CORE, 0)`        | no       | no      | no       | yes |
-| `mlockall(MCL_CURRENT \| MCL_FUTURE)` | no       | no      | no       | yes (best effort) |
+| `mlockall` best effort                | no       | no      | no       | yes (`MCL_CURRENT`; `MCL_CURRENT \| MCL_FUTURE` with `--blank`) |
 | `close_range` in auth child        | no       | no      | n/a      | yes (with fallback) |
 | Default ignores empty Enter        | no       | no      | no       | yes |
 | Default PAM stack                  | `auth include login` | `auth include system-auth` | `auth include login` | `pam_unix` + `pam_faillock` |
@@ -131,8 +131,10 @@ The process model adds the syscalls waylock left out:
 - `prctl(PR_SET_NO_NEW_PRIVS, 1)` on the parent after the auth child is
   forked, leaving PAM helpers such as `unix_chkpwd` usable.
 - `setrlimit(RLIMIT_CORE, 0)` to suppress core dumps.
-- `mlockall(MCL_CURRENT | MCL_FUTURE)` best-effort, with a clear
-  warning if `RLIMIT_MEMLOCK` is too low.
+- `mlockall` best-effort, with a clear warning if `RLIMIT_MEMLOCK` is
+  too low. The Matrix renderer uses `MCL_CURRENT` to avoid locking
+  unbounded GPU/driver allocations; `--blank` keeps the stronger
+  `MCL_CURRENT | MCL_FUTURE` path.
 - `close_range` in the auth child to drop inherited file descriptors,
   with a manual fallback for kernels older than 5.9.
 - `--fork-on-lock` redirects stdio to `/dev/null` and re-applies the
@@ -145,8 +147,19 @@ available as opt-in via `nimble installPamFull` for folks who need
 fingerprint, smartcard, homed, or keyring auto-unlock. Empty Enter is
 ignored by default; `--allow-empty-password` opens it back up.
 
+The UI changed since the first version of this document. lockme now
+defaults to GPU-rendered Matrix rain while idle, with `--blank` and
+`Alt-B` available for the solid blank screen. Typing and failure states
+still switch to simple solid-color buffers. This is a real usability
+feature, but it is also a larger dependency and FFI surface than the
+original solid-only build: EGL/GLES, Sokol, FreeType, and fontconfig
+are now part of the display path. The main security boundary remains
+the forked PAM child and protected password buffer, so the Matrix
+renderer does not run in the auth process.
+
 Where lockme is weaker: no third-party review, no fuzzing, no CI, no
-distro packaging, single author. swaylock and waylock have been
+distro packaging, single author, and now a new GPU renderer that needs
+more time under real compositors. swaylock and waylock have been
 deployed for years across thousands of installs. lockme has not.
 Years of accidental field testing is its own kind of audit, and lockme
 has not had it yet.
@@ -157,7 +170,8 @@ In rough order of "would I trust this on my own machine":
 
 1. **lockme** for the security-conscious single-user Linux workstation,
    given its hardening goes beyond the others and its surface is
-   small. The disclaimer is real: no external review, single author,
+   still deliberately narrow around authentication. The disclaimer is
+   real: no external review, single author, a new GPU display path, and
    no field deployment yet.
 2. **waylock** for the same use case if you want a project that has
    been deployed by other folks for several years. You give up
@@ -187,6 +201,6 @@ Roughly in priority:
    `Dumpable: 0` after startup.
 4. A core-dump test: `kill -SEGV` a debug build and grep the dump
    for keystroke bytes.
-5. Get a second pair of eyes on the C shim layer and the FFI
-   declarations.
+5. Get a second pair of eyes on the C shim layer, the Sokol/EGL Matrix
+   renderer, and the FFI declarations.
 6. Reproducible builds and signed releases, eventually.
