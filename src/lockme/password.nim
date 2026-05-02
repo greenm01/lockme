@@ -87,8 +87,8 @@ proc initPasswordBuffer*(): PasswordBuffer =
   )
 
 proc protectAfterFork*(p: var PasswordBuffer) =
-  ## Re-apply mlock and MADV_DONTDUMP after fork(2). Both are inherited
-  ## across fork on Linux but waylock re-applies defensively; do likewise.
+  ## Re-apply mlock after fork(2) and refresh MADV_DONTDUMP for the child.
+  ## Linux does not inherit memory locks across fork.
   if p.data.isNil:
     return
   discard c_mlock(p.data, csize_t(p.cap))

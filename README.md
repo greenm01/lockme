@@ -216,11 +216,11 @@ to harden the password buffer and the auth child:
 
 - `mlock(2)` and `madvise(MADV_DONTDUMP)` on a page-aligned password buffer,
   preventing it from being paged to swap or included in core dumps.
-- `mlockall(2)` on the locker process to keep transient password material on
-  the stack and in libc internals out of swap. Matrix mode uses `MCL_CURRENT`
-  to avoid locking unbounded GPU/driver allocations; `--blank` uses
-  `MCL_CURRENT | MCL_FUTURE` (best-effort; requires sufficient
-  `RLIMIT_MEMLOCK`).
+- `mlockall(2)` on the locker process and auth child to keep transient
+  password material on the stack and in libc/PAM internals out of swap. Matrix
+  mode uses `MCL_CURRENT` in the locker to avoid locking unbounded GPU/driver
+  allocations; `--blank` and the auth child use `MCL_CURRENT | MCL_FUTURE`
+  (best-effort; requires sufficient `RLIMIT_MEMLOCK`).
 - `explicit_bzero(3)` (glibc/musl) for password clearing that the compiler
   is not permitted to elide.
 - `prctl(PR_SET_DUMPABLE, 0)` on both the parent and the auth child to
@@ -246,6 +246,10 @@ password buffer:
 - is zeroed via `explicit_bzero` on every clear (including after each
   failed authentication and after each `Backspace`),
 - has its protections re-applied after `--fork-on-lock`.
+
+The auth child also re-applies best-effort `mlockall(MCL_CURRENT |
+MCL_FUTURE)` before initializing PAM, because memory locks are not inherited
+across `fork(2)`.
 
 With `--fork-on-lock`, the background process additionally redirects
 `stdin`/`stdout`/`stderr` to `/dev/null` to avoid `SIGPIPE` if the parent

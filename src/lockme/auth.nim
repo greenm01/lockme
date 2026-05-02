@@ -54,6 +54,7 @@ proc calloc(count, size: csize_t): pointer {.importc, header: "<stdlib.h>".}
 proc strndup(s: pointer; n: csize_t): cstring {.importc, header: "<string.h>".}
 proc prctl(option: cint; arg2, arg3, arg4, arg5: culong): cint
   {.importc, header: "<sys/prctl.h>", varargs.}
+proc mlockall(flags: cint): cint {.importc, header: "<sys/mman.h>".}
 proc close_range(first, last: cuint; flags: cuint): cint
   {.importc, header: "<unistd.h>".}
 proc sysconf(name: cint): clong {.importc, header: "<unistd.h>".}
@@ -184,6 +185,12 @@ proc closeInheritedFds(keep: openArray[cint]) =
 proc authLoop(conn: AuthConnection) {.noreturn.} =
   # Block ptrace and /proc snooping by other same-UID processes.
   discard prctl(PrSetDumpable, 0.culong, 0.culong, 0.culong, 0.culong)
+  # Parent mlockall state is not inherited across fork(2). Re-apply it
+  # before PAM starts so PAM/libc password temporaries stay out of swap
+  # when RLIMIT_MEMLOCK permits it. The dedicated password buffer below
+  # remains mandatory and fails closed if its own mlock fails.
+  if mlockall(MclCurrent or MclFuture) != 0:
+    stderr.writeLine("lockme: warning: auth child mlockall failed; PAM password material may be paged to swap (raise RLIMIT_MEMLOCK)")
 
   # Allocate the mlock'd password buffer in the child's address space.
   childPassword = initPasswordBuffer()

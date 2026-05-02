@@ -1,6 +1,6 @@
 import std/unittest
 
-import lockme/[font8x16, matrix, matrix_render]
+import lockme/[font8x16, matrix, matrix_font, matrix_render]
 
 suite "matrix":
   test "bitmap fallback glyph table matches matrix glyph set":
@@ -133,6 +133,35 @@ suite "matrix":
       if pixel != 0xff000000'u32 and pixel != 0xff80ff80'u32:
         intermediate = true
     check intermediate
+
+  test "font renderer clips partial edge cells":
+    var glyphs = newSeq[MatrixGlyphBitmap](MatrixGlyphs.len)
+    glyphs[MatrixGlyphs.high] = MatrixGlyphBitmap(
+      width: 12,
+      height: 12,
+      left: -2,
+      top: 6,
+      advance: 8,
+      pixels: newSeq[uint8](12 * 12)
+    )
+    for i in 0 ..< glyphs[MatrixGlyphs.high].pixels.len:
+      glyphs[MatrixGlyphs.high].pixels[i] = 255'u8
+
+    let renderer = MatrixRenderer(
+      kind: mrFont,
+      font: MatrixFont(cellWidth: 8, cellHeight: 8, baseline: 4, glyphs: glyphs)
+    )
+
+    var rain = initMatrixRain(2, 2)
+    rain.columns[0].headRow = 0
+    rain.columns[0].tailRow = 0
+    rain.columns[0].glyphs = @[MatrixGlyphs.high, MatrixGlyphs.high]
+
+    var pixels = newSeq[uint32](6 * 6)
+    renderMatrix(rain, renderer, cast[ptr UncheckedArray[uint32]](addr pixels[0]), 6, 6)
+
+    for pixel in pixels:
+      check pixel == 0xff80ff80'u32
 
   test "matrix ticker ignores early input wakeups":
     var ticker: MatrixTicker

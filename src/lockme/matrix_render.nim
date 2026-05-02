@@ -163,11 +163,15 @@ proc renderMatrix*(rain: MatrixRain, data: ptr UncheckedArray[uint32], width, he
       let color = if yIdx == column.headRow: headColor else: trailColor
       drawGlyph(data, width, height, x, y, column.glyphs[yIdx], color, cellScale)
 
-proc scaledColor(color: uint32; alpha: uint8): uint32 =
+proc div255Floor(x: uint32): uint32 {.inline.} =
+  # Exact floor(x / 255) for x in 0..255*255 without hardware division.
+  ((x + 1'u32) * 257'u32) shr 16
+
+proc scaledColor(color: uint32; alpha: uint8): uint32 {.inline.} =
   let a = uint32(alpha)
-  let r = (((color shr 16) and 0xff'u32) * a) div 255'u32
-  let g = (((color shr 8) and 0xff'u32) * a) div 255'u32
-  let b = ((color and 0xff'u32) * a) div 255'u32
+  let r = div255Floor(((color shr 16) and 0xff'u32) * a)
+  let g = div255Floor(((color shr 8) and 0xff'u32) * a)
+  let b = div255Floor((color and 0xff'u32) * a)
   0xff000000'u32 or (r shl 16) or (g shl 8) or b
 
 proc drawFontGlyph(data: ptr UncheckedArray[uint32], width, height: int, cellX, cellY: int, cellWidth, cellHeight, baseline: int, glyph: MatrixGlyphBitmap, color: uint32) =
@@ -176,17 +180,22 @@ proc drawFontGlyph(data: ptr UncheckedArray[uint32], width, height: int, cellX, 
   let originY = cellY + baseline - glyph.top
   let cellRight = cellX + cellWidth
   let cellBottom = cellY + cellHeight
-  for row in 0 ..< glyph.height:
+  let rowStart = max(0, max(cellY - originY, -originY))
+  let rowEnd = min(glyph.height, min(cellBottom - originY, height - originY))
+  let colStart = max(0, max(cellX - originX, -originX))
+  let colEnd = min(glyph.width, min(cellRight - originX, width - originX))
+  if rowStart >= rowEnd or colStart >= colEnd:
+    return
+
+  for row in rowStart ..< rowEnd:
     let ty = originY + row
-    if ty < cellY or ty >= cellBottom or ty < 0 or ty >= height:
-      continue
-    for col in 0 ..< glyph.width:
+    let srcBase = row * glyph.width
+    let dstBase = ty * width
+    for col in colStart ..< colEnd:
       let tx = originX + col
-      if tx < cellX or tx >= cellRight or tx < 0 or tx >= width:
-        continue
-      let alpha = glyph.pixels[row * glyph.width + col]
+      let alpha = glyph.pixels[srcBase + col]
       if alpha != 0:
-        data[ty * width + tx] = scaledColor(color, alpha)
+        data[dstBase + tx] = scaledColor(color, alpha)
 
 proc renderMatrixFont*(rain: MatrixRain, renderer: MatrixRenderer, data: ptr UncheckedArray[uint32], width, height: int) =
   for i in 0 ..< width * height:

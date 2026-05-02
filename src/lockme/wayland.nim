@@ -853,9 +853,9 @@ proc sessionLocked(data: pointer; sessionLock: ptr ExtSessionLock) {.cdecl.} =
     discard setsid()
     discard chdir("/")
     redirectStdioToDevNull()
-    # Re-apply mlock and MADV_DONTDUMP to the password buffer in the
-    # background process; both are inherited across fork on Linux but we
-    # re-apply defensively to match waylock's behavior.
+    # Re-apply mlock to the password buffer in the background process
+    # and refresh MADV_DONTDUMP for the child. Linux does not inherit
+    # memory locks across fork.
     lock.password.protectAfterFork()
 
 proc sessionFinished(data: pointer; sessionLock: ptr ExtSessionLock) {.cdecl.} =
@@ -988,9 +988,9 @@ proc applyProcessHardening(opts: Options) =
   ## - PR_SET_DUMPABLE=0: blocks ptrace and /proc snooping by other
   ##   same-UID processes.
   ## - RLIMIT_CORE=0: suppresses core dumps for the whole process.
-  ## - mlockall(MCL_CURRENT | MCL_FUTURE): locks all current and future
-  ##   pages into RAM so transient password material on the stack or in
-  ##   libc internals cannot be paged to swap.
+  ## - mlockall(2): locks pages into RAM so transient password material
+  ##   on the stack or in libc internals cannot be paged to swap. Matrix
+  ##   mode avoids MCL_FUTURE to avoid locking unbounded GPU/driver pages.
   discard prctl(PrSetDumpable, 0.culong, 0.culong, 0.culong, 0.culong)
   var rl = RLimit(rlim_cur: 0, rlim_max: 0)
   discard setrlimit(RlimitCoreId, addr rl)
