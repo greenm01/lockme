@@ -32,25 +32,25 @@ new one from scratch &mdash; and because I dig Nim.
 ## Install build dependencies
 
 `lockme` needs Nim/Nimble, a C toolchain, and development headers for
-Wayland, xkbcommon, and PAM.
+Wayland, xkbcommon, PAM, FreeType, and fontconfig.
 
 Void Linux:
 
 ```sh
-sudo xbps-install -Sy nim nimble base-devel wayland-devel libxkbcommon-devel pam-devel pkg-config
+sudo xbps-install -Sy nim nimble base-devel wayland-devel libxkbcommon-devel pam-devel freetype-devel fontconfig-devel pkg-config
 ```
 
 Arch Linux:
 
 ```sh
-sudo pacman -S --needed nim nimble base-devel wayland libxkbcommon pam pkgconf
+sudo pacman -S --needed nim nimble base-devel wayland libxkbcommon pam freetype2 fontconfig pkgconf
 ```
 
 Debian/Ubuntu:
 
 ```sh
 sudo apt update
-sudo apt install nim nimble build-essential libwayland-dev libxkbcommon-dev libpam0g-dev pkg-config
+sudo apt install nim nimble build-essential libwayland-dev libxkbcommon-dev libpam0g-dev libfreetype-dev libfontconfig-dev pkg-config
 ```
 
 ## Build
@@ -60,7 +60,8 @@ Build dependencies:
 - Nim `2.2.0` or newer
 - a C compiler
 - `pkg-config`
-- development packages for `wayland-client`, `xkbcommon`, and `pam`
+- development packages for `wayland-client`, `xkbcommon`, `pam`,
+  `freetype2`, and `fontconfig`
 
 Protocol refresh dependency:
 

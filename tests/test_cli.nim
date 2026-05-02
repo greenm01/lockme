@@ -79,6 +79,20 @@ suite "cli":
     check opts.noConfig
     check cfNoConfig in opts.setFlags
 
+  test "--matrix enables matrix":
+    let opts = parseOptions(@["--matrix"])
+    check opts.matrix
+    check cfMatrix in opts.setFlags
+
+  test "matrix frame timing default":
+    let opts = parseOptions(@[])
+    check opts.matrixFrameMs == MatrixFrameMsDefault
+    check opts.matrixCellScale == MatrixCellScaleDefault
+    check opts.matrixFontFamily == MatrixFontFamilyDefault
+    check opts.matrixFontPath == MatrixFontPathDefault
+    check opts.matrixFontSize == MatrixFontSizeDefault
+    check opts.matrixLineHeight == MatrixLineHeightDefault
+
   test "setFlags empty when no overrides":
     let opts = parseOptions(@[])
     check opts.setFlags == {}

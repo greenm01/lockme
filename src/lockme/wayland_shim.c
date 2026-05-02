@@ -52,6 +52,10 @@ int lockme_wl_keyboard_add_listener(struct wl_keyboard *keyboard, const void *li
 	return wl_keyboard_add_listener(keyboard, (const struct wl_keyboard_listener *) listener, data);
 }
 
+int lockme_wl_buffer_add_listener(struct wl_buffer *buffer, const void *listener, void *data) {
+	return wl_buffer_add_listener(buffer, (const struct wl_buffer_listener *) listener, data);
+}
+
 int lockme_ext_session_lock_v1_add_listener(struct ext_session_lock_v1 *lock, const void *listener, void *data) {
 	return ext_session_lock_v1_add_listener(lock, (const struct ext_session_lock_v1_listener *) listener, data);
 }

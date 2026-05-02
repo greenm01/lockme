@@ -45,6 +45,7 @@ task test, "Run unit tests":
   exec "nim c -r --path:src tests/test_password.nim"
   exec "nim c -r --path:src tests/test_cli.nim"
   exec "nim c -r --path:src tests/test_config.nim"
+  exec "nim c -r --path:src tests/test_matrix.nim"
 
 task sizecheck, "Build release and report final binary size":
   exec buildCommand

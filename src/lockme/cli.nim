@@ -1,6 +1,12 @@
 import std/[options, parseutils, strutils]
 
 const Version* = "0.1.0"
+const MatrixFrameMsDefault* = 80
+const MatrixCellScaleDefault* = 2
+const MatrixFontFamilyDefault* = "monospace"
+const MatrixFontPathDefault* = ""
+const MatrixFontSizeDefault* = 18
+const MatrixLineHeightDefault* = 24
 
 type
   LogLevel* = enum
@@ -20,6 +26,7 @@ type
     cfCheckProtocols
     cfConfigPath
     cfNoConfig
+    cfMatrix
 
   Options* = object
     forkOnLock*: bool
@@ -36,6 +43,13 @@ type
     showVersion*: bool
     configPath*: Option[string]
     noConfig*: bool
+    matrix*: bool
+    matrixFrameMs*: int
+    matrixCellScale*: int
+    matrixFontFamily*: string
+    matrixFontPath*: string
+    matrixFontSize*: int
+    matrixLineHeight*: int
     setFlags*: set[CliFlag]
 
 const Usage* = """usage: lockme [options]
@@ -51,6 +65,7 @@ const Usage* = """usage: lockme [options]
   --dev-mode                       Insecure development mode: Esc unlocks and
                                    exits without PAM authentication.
   --check-protocols                Check required Wayland globals without locking.
+  --matrix                         Enable matrix screensaver when idle.
 
   --config <path>                  Load configuration from <path>.
   --no-config                      Do not load any configuration file.
@@ -72,7 +87,13 @@ proc defaultOptions*(): Options =
     initColor: 0x000000'u32,                                # pure black
     inputColors: @[0x4B0082'u32, 0x003366'u32, 0x006400'u32], # Father (Tyrian indigo/violet), Son (royal blue), Spirit (life green)
     failColor: 0x8B0000'u32,                                # deep crimson
-    logLevel: llError
+    logLevel: llError,
+    matrixFrameMs: MatrixFrameMsDefault,
+    matrixCellScale: MatrixCellScaleDefault,
+    matrixFontFamily: MatrixFontFamilyDefault,
+    matrixFontPath: MatrixFontPathDefault,
+    matrixFontSize: MatrixFontSizeDefault,
+    matrixLineHeight: MatrixLineHeightDefault
   )
 
 proc parseColor*(raw: string): uint32 =
@@ -124,6 +145,9 @@ proc parseOptions*(args: seq[string]): Options =
     of "--check-protocols":
       result.checkProtocols = true
       result.setFlags.incl cfCheckProtocols
+    of "--matrix":
+      result.matrix = true
+      result.setFlags.incl cfMatrix
     of "--no-config":
       result.noConfig = true
       result.setFlags.incl cfNoConfig

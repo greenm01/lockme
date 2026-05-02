@@ -29,6 +29,7 @@ int lockme_wl_registry_add_listener(struct wl_registry *registry, const void *li
 int lockme_wl_seat_add_listener(struct wl_seat *seat, const void *listener, void *data);
 int lockme_wl_pointer_add_listener(struct wl_pointer *pointer, const void *listener, void *data);
 int lockme_wl_keyboard_add_listener(struct wl_keyboard *keyboard, const void *listener, void *data);
+int lockme_wl_buffer_add_listener(struct wl_buffer *buffer, const void *listener, void *data);
 int lockme_ext_session_lock_v1_add_listener(struct ext_session_lock_v1 *lock, const void *listener, void *data);
 int lockme_ext_session_lock_surface_v1_add_listener(struct ext_session_lock_surface_v1 *surface, const void *listener, void *data);
 

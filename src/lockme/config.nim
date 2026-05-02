@@ -12,6 +12,14 @@ import ./cli
 const
   ConfigDirName* = "lockme"
   ConfigFileName* = "config.kdl"
+  MatrixFrameMsMin* = 30
+  MatrixFrameMsMax* = 5000
+  MatrixCellScaleMin* = 1
+  MatrixCellScaleMax* = 8
+  MatrixFontSizeMin* = 6
+  MatrixFontSizeMax* = 96
+  MatrixLineHeightMin* = 6
+  MatrixLineHeightMax* = 160
 
 proc parseColorString*(raw: string): uint32 =
   ## Accepts both ``0xRRGGBB`` and ``#RRGGBB`` hex literals.
@@ -112,6 +120,71 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
     if n.args.len < 1:
       raise newException(ValueError, "ignore-empty-password requires a boolean value")
     opts.ignoreEmptyPassword = n.args[0].kBool()
+
+  let matrixNode = doc.findNode("matrix")
+  if matrixNode.isSome and cfMatrix notin opts.setFlags:
+    let n = matrixNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "matrix requires a boolean value")
+    opts.matrix = n.args[0].kBool()
+
+  let matrixFrameNode = doc.findNode("matrix-frame-ms")
+  if matrixFrameNode.isSome:
+    let n = matrixFrameNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "matrix-frame-ms requires an integer value")
+    let value = n.args[0].kInt()
+    if value < MatrixFrameMsMin or value > MatrixFrameMsMax:
+      raise newException(ValueError, "matrix-frame-ms must be between " &
+        $MatrixFrameMsMin & " and " & $MatrixFrameMsMax)
+    opts.matrixFrameMs = int(value)
+
+  let matrixCellScaleNode = doc.findNode("matrix-cell-scale")
+  if matrixCellScaleNode.isSome:
+    let n = matrixCellScaleNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "matrix-cell-scale requires an integer value")
+    let value = n.args[0].kInt()
+    if value < MatrixCellScaleMin or value > MatrixCellScaleMax:
+      raise newException(ValueError, "matrix-cell-scale must be between " &
+        $MatrixCellScaleMin & " and " & $MatrixCellScaleMax)
+    opts.matrixCellScale = int(value)
+
+  let matrixFontFamilyNode = doc.findNode("matrix-font-family")
+  if matrixFontFamilyNode.isSome:
+    let n = matrixFontFamilyNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "matrix-font-family requires a string value")
+    opts.matrixFontFamily = n.args[0].kString()
+
+  let matrixFontPathNode = doc.findNode("matrix-font-path")
+  if matrixFontPathNode.isSome:
+    let n = matrixFontPathNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "matrix-font-path requires a string value")
+    opts.matrixFontPath = n.args[0].kString()
+
+  let matrixFontSizeNode = doc.findNode("matrix-font-size")
+  if matrixFontSizeNode.isSome:
+    let n = matrixFontSizeNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "matrix-font-size requires an integer value")
+    let value = n.args[0].kInt()
+    if value < MatrixFontSizeMin or value > MatrixFontSizeMax:
+      raise newException(ValueError, "matrix-font-size must be between " &
+        $MatrixFontSizeMin & " and " & $MatrixFontSizeMax)
+    opts.matrixFontSize = int(value)
+
+  let matrixLineHeightNode = doc.findNode("matrix-line-height")
+  if matrixLineHeightNode.isSome:
+    let n = matrixLineHeightNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "matrix-line-height requires an integer value")
+    let value = n.args[0].kInt()
+    if value < MatrixLineHeightMin or value > MatrixLineHeightMax:
+      raise newException(ValueError, "matrix-line-height must be between " &
+        $MatrixLineHeightMin & " and " & $MatrixLineHeightMax)
+    opts.matrixLineHeight = int(value)
 
 proc applyConfigFile*(opts: var Options; path: string) =
   ## Reads and applies a KDL config file. Raises ``ValueError`` with the

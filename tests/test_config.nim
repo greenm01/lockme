@@ -104,6 +104,68 @@ ignore-empty-password #false
     check opts.forkOnLock == true
     check opts.ignoreEmptyPassword == false
 
+  test "matrix option":
+    let path = getTempDir() / "lockme_test_matrix.kdl"
+    writeFile(path, """
+matrix #true
+matrix-frame-ms 220
+matrix-cell-scale 3
+matrix-font-family "JetBrains Mono"
+matrix-font-path "/tmp/matrix.ttf"
+matrix-font-size 20
+matrix-line-height 28
+""")
+    defer: removeFile(path)
+    var opts = defaultOptions()
+    opts.applyConfigFile(path)
+    check opts.matrix == true
+    check opts.matrixFrameMs == 220
+    check opts.matrixCellScale == 3
+    check opts.matrixFontFamily == "JetBrains Mono"
+    check opts.matrixFontPath == "/tmp/matrix.ttf"
+    check opts.matrixFontSize == 20
+    check opts.matrixLineHeight == 28
+
+  test "CLI matrix wins over config":
+    let path = getTempDir() / "lockme_test_matrix_override.kdl"
+    writeFile(path, "matrix #false\n")
+    defer: removeFile(path)
+    var opts = parseOptions(@["--matrix"])
+    opts.applyConfigFile(path)
+    check opts.matrix == true
+
+  test "matrix-frame-ms range is validated":
+    let path = getTempDir() / "lockme_test_matrix_frame_bad.kdl"
+    writeFile(path, "matrix-frame-ms 10\n")
+    defer: removeFile(path)
+    var opts = defaultOptions()
+    expect ValueError:
+      opts.applyConfigFile(path)
+
+  test "matrix-cell-scale range is validated":
+    let path = getTempDir() / "lockme_test_matrix_cell_scale_bad.kdl"
+    writeFile(path, "matrix-cell-scale 0\n")
+    defer: removeFile(path)
+    var opts = defaultOptions()
+    expect ValueError:
+      opts.applyConfigFile(path)
+
+  test "matrix-font-size range is validated":
+    let path = getTempDir() / "lockme_test_matrix_font_size_bad.kdl"
+    writeFile(path, "matrix-font-size 4\n")
+    defer: removeFile(path)
+    var opts = defaultOptions()
+    expect ValueError:
+      opts.applyConfigFile(path)
+
+  test "matrix-line-height range is validated":
+    let path = getTempDir() / "lockme_test_matrix_line_height_bad.kdl"
+    writeFile(path, "matrix-line-height 4\n")
+    defer: removeFile(path)
+    var opts = defaultOptions()
+    expect ValueError:
+      opts.applyConfigFile(path)
+
   test "missing --config path raises":
     var opts = parseOptions(@["--config", "/nonexistent/lockme.kdl"])
     expect ValueError:

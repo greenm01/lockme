@@ -1,7 +1,9 @@
-import std/posix
+import std/[monotimes, posix, times]
 
 import ./auth
 import ./cli
+import ./matrix
+import ./matrix_render
 import ./password
 
 const
@@ -22,6 +24,7 @@ const
   WlKeyboardKeyStatePressed = 1'u32
   WlSeatCapabilityPointer = 1'u32
   WlSeatCapabilityKeyboard = 2'u32
+  MatrixFailHoldMs = 750
 
   XkbKeymapFormatTextV1 = 1.cint
   XkbKeyReturn = 0xff0d'u32
@@ -77,6 +80,9 @@ type
     axisValue120 {.importc: "axis_value120".}: proc(data: pointer; pointer: ptr WlPointer; axis: uint32; value120: int32) {.cdecl.}
     axisRelativeDirection {.importc: "axis_relative_direction".}: proc(data: pointer; pointer: ptr WlPointer; axis, direction: uint32) {.cdecl.}
 
+  WlBufferListener {.bycopy.} = object
+    release: proc(data: pointer; buffer: ptr WlBuffer) {.cdecl.}
+
   WlKeyboardListener {.bycopy.} = object
     keymap: proc(data: pointer; keyboard: ptr WlKeyboard; format: uint32; fd: int32; size: uint32) {.cdecl.}
     enter: proc(data: pointer; keyboard: ptr WlKeyboard; serial: uint32; surface: ptr WlSurface; keys: ptr WlArray) {.cdecl.}
@@ -102,6 +108,13 @@ type
   LockState = enum
     lsInitializing, lsLocking, lsLocked, lsExiting
 
+  MatrixBuffer = object
+    buffer: ptr WlBuffer
+    data: ptr UncheckedArray[uint32]
+    width, height: int
+    scale: int
+    busy: bool
+
   Output = ref object
     lock: Lock
     name: uint32
@@ -112,6 +125,9 @@ type
     configured: bool
     width: int32
     height: int32
+    matrixRain: MatrixRain
+    matrixBuffers: array[2, MatrixBuffer]
+    matrixNextBuffer: int
 
   Seat = ref object
     lock: Lock
@@ -139,6 +155,12 @@ type
     xkbContext: ptr XkbContext
     password: PasswordBuffer
     auth: AuthConnection
+    matrixEnabled: bool
+    matrixRenderer: MatrixRenderer
+    matrixClockStart: MonoTime
+    matrixTicker: MatrixTicker
+    failReturnPending: bool
+    failReturnAt: MonoTime
 
   Lock = ref LockObj
 
@@ -157,6 +179,7 @@ proc wl_registry_add_listener(registry: ptr WlRegistry; listener: pointer; data:
 proc wl_seat_add_listener(seat: ptr WlSeat; listener: pointer; data: pointer): cint {.importc: "lockme_wl_seat_add_listener", header: "lockme/wayland_shim.h".}
 proc wl_pointer_add_listener(pointer: ptr WlPointer; listener: pointer; data: pointer): cint {.importc: "lockme_wl_pointer_add_listener", header: "lockme/wayland_shim.h".}
 proc wl_keyboard_add_listener(keyboard: ptr WlKeyboard; listener: pointer; data: pointer): cint {.importc: "lockme_wl_keyboard_add_listener", header: "lockme/wayland_shim.h".}
+proc wl_buffer_add_listener(buffer: ptr WlBuffer; listener: pointer; data: pointer): cint {.importc: "lockme_wl_buffer_add_listener", header: "lockme/wayland_shim.h".}
 proc ext_session_lock_v1_add_listener(lock: ptr ExtSessionLock; listener: pointer; data: pointer): cint {.importc: "lockme_ext_session_lock_v1_add_listener", header: "lockme/wayland_shim.h".}
 proc ext_session_lock_surface_v1_add_listener(surface: ptr ExtSessionLockSurface; listener: pointer; data: pointer): cint {.importc: "lockme_ext_session_lock_surface_v1_add_listener", header: "lockme/wayland_shim.h".}
 
@@ -239,12 +262,25 @@ var
   registryListener: WlRegistryListener
   seatListener: WlSeatListener
   pointerListener: WlPointerListener
+  bufferListener: WlBufferListener
   keyboardListener: WlKeyboardListener
   sessionLockListener: ExtSessionLockListener
   lockSurfaceListener: ExtSessionLockSurfaceListener
 
 proc fatal(message: string) {.noreturn.} =
   quit("lockme: " & message, 1)
+
+proc logEnabled(lock: Lock; level: LogLevel): bool =
+  ord(lock.opts.logLevel) >= ord(level)
+
+proc logMessage(lock: Lock; level: LogLevel; message: string) =
+  if lock.logEnabled(level):
+    stderr.writeLine("lockme: " & message)
+
+proc logMatrixFailure(output: Output; message: string) =
+  let lock = output.lock
+  if lock.matrixEnabled or lock.logEnabled(llWarning):
+    stderr.writeLine("lockme: warning: matrix output " & $output.name & ": " & message)
 
 proc rgba16(value: uint32; shift: int): uint32 =
   let component = (value shr shift) and 0xff'u32
@@ -271,21 +307,165 @@ proc nextInputState(lock: Lock): ColorState =
     else: 0
   inputState(nextIdx)
 
+proc wantsMatrix(lock: Lock): bool =
+  lock.matrixEnabled and lock.color.kind == ckInit and lock.password.len == 0
+
+proc destroyMatrixBuffers(output: Output) =
+  for buf in mitems(output.matrixBuffers):
+    if not buf.data.isNil:
+      discard munmap(buf.data, buf.width * buf.height * 4)
+    if not buf.buffer.isNil:
+      wlBufferDestroy(buf.buffer)
+    buf = MatrixBuffer()
+  output.matrixNextBuffer = 0
+
+proc createMatrixShmBuffers(output: Output) =
+  let lock = output.lock
+  output.destroyMatrixBuffers()
+  if not lock.matrixEnabled or lock.shm.isNil:
+    return
+
+  let geometry = matrixRenderGeometry(output.width, output.height, lock.matrixRenderer)
+  let cols = geometry.cols
+  let rows = geometry.rows
+  let bufWidth = geometry.width
+  let bufHeight = geometry.height
+
+  if lock.logEnabled(llDebug):
+    lock.logMessage(llDebug, "matrix output " & $output.name &
+      ": surface=" & $output.width & "x" & $output.height &
+      " render=" & $bufWidth & "x" & $bufHeight &
+      " cells=" & $cols & "x" & $rows &
+      " renderer=" & (if lock.matrixRenderer.usesFontRenderer(): "font" else: "bitmap") &
+      " scale=" & $geometry.scale)
+
+  if bufWidth <= 0 or bufHeight <= 0:
+    output.logMatrixFailure("surface too small for matrix cells at scale " & $geometry.scale)
+    return
+
+  let size = bufWidth * bufHeight * 4
+  if size > int(high(int32)):
+    output.logMatrixFailure("render buffer too large: " & $size & " bytes")
+    return
+
+  for i in 0 ..< output.matrixBuffers.len:
+    let buf = addr output.matrixBuffers[i]
+    let fd = memfd_create("lockme-matrix".cstring, 0)
+    if fd < 0:
+      output.destroyMatrixBuffers()
+      output.logMatrixFailure("memfd_create failed")
+      return
+    if ftruncate(fd, size.Off) != 0:
+      discard close(fd)
+      output.destroyMatrixBuffers()
+      output.logMatrixFailure("ftruncate failed for " & $size & " bytes")
+      return
+
+    let mapped = mmap(nil, size, PROT_READ or PROT_WRITE, MAP_SHARED, fd, 0)
+    if mapped == cast[pointer](-1):
+      discard close(fd)
+      output.destroyMatrixBuffers()
+      output.logMatrixFailure("mmap failed for " & $size & " bytes")
+      return
+
+    let pool = wlShmCreatePool(lock.shm, fd, size.int32)
+    discard close(fd)
+    if pool.isNil:
+      discard munmap(mapped, size)
+      output.destroyMatrixBuffers()
+      output.logMatrixFailure("wl_shm pool creation failed")
+      return
+
+    let wlbuf = wlShmPoolCreateBuffer(pool, 0, bufWidth.int32, bufHeight.int32, (bufWidth * 4).int32, WlShmFormatXrgb8888)
+    wlShmPoolDestroy(pool)
+    if wlbuf.isNil:
+      discard munmap(mapped, size)
+      output.destroyMatrixBuffers()
+      output.logMatrixFailure("wl_shm buffer creation failed")
+      return
+
+    buf[] = MatrixBuffer(
+      buffer: wlbuf,
+      data: cast[ptr UncheckedArray[uint32]](mapped),
+      width: bufWidth,
+      height: bufHeight,
+      scale: geometry.scale,
+      busy: false
+    )
+    discard wl_buffer_add_listener(buf.buffer, cast[pointer](addr bufferListener), cast[pointer](buf))
+
+  output.matrixRain = initMatrixRain(cols, rows)
+  output.matrixNextBuffer = 0
+  if lock.logEnabled(llDebug):
+    lock.logMessage(llDebug, "matrix output " & $output.name &
+      ": allocated " & $output.matrixBuffers.len & " buffers of " & $size & " bytes")
+
 proc attachBuffer(output: Output; buffer: ptr WlBuffer) =
-  if not output.configured or output.surface.isNil:
+  if buffer.isNil or not output.configured or output.surface.isNil:
     return
   wlSurfaceAttach(output.surface, buffer, 0, 0)
   wlSurfaceDamageBuffer(output.surface, 0, 0, high(int32), high(int32))
   viewportSetDestination(output.viewport, output.width, output.height)
   wlSurfaceCommit(output.surface)
 
+proc attachColor(output: Output; color: ColorState) =
+  let idx = output.lock.bufferIndex(color)
+  output.attachBuffer(output.lock.buffers[idx])
+
+proc hasMatrixBuffers(output: Output): bool =
+  for buf in output.matrixBuffers:
+    if not buf.buffer.isNil and not buf.data.isNil:
+      return true
+  false
+
+proc attachMatrixFrame(output: Output): bool =
+  if not output.hasMatrixBuffers():
+    return false
+  for offset in 0 ..< output.matrixBuffers.len:
+    let idx = (output.matrixNextBuffer + offset) mod output.matrixBuffers.len
+    if output.matrixBuffers[idx].buffer.isNil or output.matrixBuffers[idx].data.isNil:
+      continue
+    if output.matrixBuffers[idx].busy:
+      continue
+    renderMatrix(output.matrixRain, output.lock.matrixRenderer, output.matrixBuffers[idx].data, output.matrixBuffers[idx].width, output.matrixBuffers[idx].height)
+    output.attachBuffer(output.matrixBuffers[idx].buffer)
+    output.matrixBuffers[idx].busy = true
+    output.matrixNextBuffer = (idx + 1) mod output.matrixBuffers.len
+    return true
+  true
+
+proc presentOutput(output: Output) =
+  if output.lock.wantsMatrix():
+    if output.attachMatrixFrame():
+      return
+    output.logMatrixFailure("no matrix buffer available; using init color fallback")
+  output.attachColor(output.lock.color)
+
 proc setColor(lock: Lock; color: ColorState) =
   if lock.color == color:
     return
+  if color.kind != ckFail:
+    lock.failReturnPending = false
   lock.color = color
-  let idx = lock.bufferIndex(color)
   for output in lock.outputs:
-    output.attachBuffer(lock.buffers[idx])
+    output.presentOutput()
+
+proc failReturnTimeout(now, deadline: MonoTime): cint =
+  if deadline <= now:
+    return 0.cint
+  let ms = (deadline - now).inMilliseconds
+  if ms > int64(high(cint)): high(cint) else: cint(ms)
+
+proc matrixNowMs(lock: Lock; now: MonoTime): int64 =
+  if lock.matrixClockStart.ticks == 0:
+    return 0
+  (now - lock.matrixClockStart).inMilliseconds
+
+proc combinePollTimeout(a, b: cint): cint =
+  if a < 0: b
+  elif b < 0: a
+  elif a < b: a
+  else: b
 
 proc createOutputSurface(output: Output) =
   let lock = output.lock
@@ -301,6 +481,7 @@ proc createOutputSurface(output: Output) =
     fatal("failed to create viewport")
 
 proc destroyOutput(output: Output) =
+  output.destroyMatrixBuffers()
   if not output.lockSurface.isNil:
     lockSurfaceDestroy(output.lockSurface)
   if not output.viewport.isNil:
@@ -413,6 +594,10 @@ proc seatName(data: pointer; seat: ptr WlSeat; name: cstring) {.cdecl.} =
 
 proc pointerEnter(data: pointer; pointer: ptr WlPointer; serial: uint32; surface: ptr WlSurface; x, y: int32) {.cdecl.} =
   wlPointerSetCursor(pointer, serial, nil, 0, 0)
+
+proc bufferRelease(data: pointer; buffer: ptr WlBuffer) {.cdecl.} =
+  let matrixBuffer = cast[ptr MatrixBuffer](data)
+  matrixBuffer.busy = false
 
 proc pointerIgnore(data: pointer; pointer: ptr WlPointer) {.cdecl.} = discard
 proc pointerIgnoreLeave(data: pointer; pointer: ptr WlPointer; serial: uint32; surface: ptr WlSurface) {.cdecl.} = discard
@@ -583,7 +768,8 @@ proc lockSurfaceConfigure(data: pointer; surface: ptr ExtSessionLockSurface; ser
   output.width = int32(min(width, uint32(high(int32))))
   output.height = int32(min(height, uint32(high(int32))))
   lockSurfaceAckConfigure(surface, serial)
-  output.attachBuffer(output.lock.buffers[output.lock.bufferIndex(output.lock.color)])
+  output.createMatrixShmBuffers()
+  output.presentOutput()
 
 proc flushAndPrepareRead(lock: Lock) =
   while wl_display_prepare_read(lock.display) != 0:
@@ -605,6 +791,7 @@ proc checkRequired(lock: Lock) =
   if lock.lockManager.isNil: fatal("ext_session_lock_manager_v1 not advertised")
   if lock.viewporter.isNil: fatal("wp_viewporter not advertised")
   if lock.pixelManager.isNil and lock.shm.isNil: fatal("neither wp_single_pixel_buffer_manager_v1 nor wl_shm is advertised")
+  if lock.matrixEnabled and lock.shm.isNil: fatal("--matrix requires wl_shm")
 
 proc initListeners() =
   registryListener = WlRegistryListener(global: registryGlobal, globalRemove: registryGlobalRemove)
@@ -622,6 +809,7 @@ proc initListeners() =
     axisValue120: pointerIgnoreAxisValue120,
     axisRelativeDirection: pointerIgnoreAxisRelativeDirection
   )
+  bufferListener = WlBufferListener(release: bufferRelease)
   keyboardListener = WlKeyboardListener(
     keymap: keyboardKeymap,
     enter: keyboardEnter,
@@ -659,6 +847,8 @@ proc deinit(lock: Lock) =
     xkb_context_unref(lock.xkbContext)
   if not lock.display.isNil:
     wl_display_disconnect(lock.display)
+  if not lock.matrixRenderer.isNil:
+    lock.matrixRenderer.close()
   lock.password.clear()
 
 proc connectAndDiscover(opts: Options): Lock =
@@ -666,8 +856,20 @@ proc connectAndDiscover(opts: Options): Lock =
     opts: opts,
     state: lsInitializing,
     color: initState(),
-    password: initPasswordBuffer()
+    password: initPasswordBuffer(),
+    matrixEnabled: opts.matrix
   )
+  result.matrixClockStart = getMonoTime()
+  if result.matrixEnabled:
+    result.matrixRenderer = initMatrixRenderer(
+      opts.matrixFontFamily,
+      opts.matrixFontPath,
+      opts.matrixFontSize,
+      opts.matrixLineHeight,
+      opts.matrixCellScale
+    )
+    if not result.matrixRenderer.usesFontRenderer():
+      stderr.writeLine("lockme: warning: failed to initialize antialiased matrix font renderer; using bitmap fallback")
   result.display = wl_display_connect(nil)
   if result.display.isNil:
     fatal("failed to connect to a Wayland compositor")
@@ -686,7 +888,7 @@ proc checkProtocols*(opts: Options) =
   lock.checkRequired()
   echo "lockme: required Wayland protocols are available"
 
-proc applyProcessHardening() =
+proc applyProcessHardening(opts: Options) =
   ## Process-wide hardening applied at startup. Each step is best-effort:
   ## a missing kernel feature must not stop the locker from running.
   ##
@@ -702,7 +904,10 @@ proc applyProcessHardening() =
   # mlockall may fail with EPERM under low RLIMIT_MEMLOCK or in
   # containers; the password buffer's own mlock is mandatory and handled
   # separately, so a failure here only weakens defense-in-depth.
-  if mlockall(MclCurrent or MclFuture) != 0:
+  let mlockFlags =
+    if opts.matrix: MclCurrent
+    else: MclCurrent or MclFuture
+  if mlockall(mlockFlags) != 0:
     stderr.writeLine("lockme: warning: mlockall failed; transient password material may be paged to swap (raise RLIMIT_MEMLOCK)")
 
 proc applyParentNoNewPrivs() =
@@ -712,7 +917,7 @@ proc applyParentNoNewPrivs() =
   discard prctl(PrSetNoNewPrivs, 1.culong, 0.culong, 0.culong, 0.culong)
 
 proc runLock*(opts: Options) =
-  applyProcessHardening()
+  applyProcessHardening(opts)
   initListeners()
   let lock = connectAndDiscover(opts)
   defer: lock.deinit()
@@ -740,7 +945,24 @@ proc runLock*(opts: Options) =
     lock.flushAndPrepareRead()
     pollfds[0] = TPollfd(fd: wl_display_get_fd(lock.display), events: POLLIN, revents: 0)
     pollfds[1] = TPollfd(fd: lock.auth.readFd, events: POLLIN, revents: 0)
-    if poll(addr pollfds[0], Tnfds(pollfds.len), -1) < 0:
+
+    let pollStart = getMonoTime()
+    let matrixVisible = lock.wantsMatrix()
+    var timeout = cint(matrixFrameTimeoutMs(
+      lock.matrixTicker,
+      matrixVisible,
+      lock.matrixNowMs(pollStart),
+      lock.opts.matrixFrameMs
+    ))
+    if lock.failReturnPending:
+      let failTimeout = failReturnTimeout(pollStart, lock.failReturnAt)
+      timeout = combinePollTimeout(timeout, failTimeout)
+
+    let pollRc = poll(addr pollfds[0], Tnfds(pollfds.len), timeout)
+    if pollRc < 0:
+      if errno == EINTR:
+        wl_display_cancel_read(lock.display)
+        continue
       fatal("poll failed")
 
     if (pollfds[0].revents and POLLIN) != 0:
@@ -759,9 +981,30 @@ proc runLock*(opts: Options) =
         lock.sessionLock = nil
         lock.state = lsExiting
       else:
+        if lock.matrixEnabled:
+          lock.failReturnPending = true
+          lock.failReturnAt = getMonoTime() + initDuration(milliseconds = MatrixFailHoldMs)
         lock.setColor(failState())
     elif (pollfds[1].revents and (POLLHUP or POLLERR or POLLNVAL)) != 0:
       fatal("auth child exited unexpectedly")
+
+    if lock.failReturnPending:
+      let now = getMonoTime()
+      if lock.failReturnAt <= now:
+        lock.failReturnPending = false
+        if lock.matrixEnabled and lock.color.kind == ckFail and lock.password.len == 0:
+          lock.setColor(initState())
+
+    let matrixFrameNow = getMonoTime()
+    if matrixFrameDue(
+      lock.matrixTicker,
+      lock.wantsMatrix(),
+      lock.matrixNowMs(matrixFrameNow),
+      lock.opts.matrixFrameMs
+    ):
+      for output in lock.outputs:
+        output.matrixRain.advance()
+        discard output.attachMatrixFrame()
 
   if wl_display_roundtrip(lock.display) < 0:
     fatal("final Wayland roundtrip failed")

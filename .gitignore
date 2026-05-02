@@ -5,4 +5,5 @@
 /lockme
 /tests/test_cli
 /tests/test_config
+/tests/test_matrix
 /tests/test_password
