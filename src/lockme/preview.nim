@@ -59,6 +59,7 @@ type
     buffer: ptr WlBuffer
     data: ptr UncheckedArray[uint32]
     width, height: int
+    size: int
     busy: bool
 
   Preview = ref object
@@ -154,7 +155,7 @@ proc matrixNowMs(preview: Preview; now: MonoTime): int64 =
 
 proc destroyBuffer(buf: var PreviewBuffer) =
   if not buf.data.isNil:
-    discard munmap(buf.data, buf.width * buf.height * 4)
+    discard munmap(buf.data, buf.size)
   if not buf.buffer.isNil:
     wlBufferDestroy(buf.buffer)
   buf = PreviewBuffer()
@@ -234,10 +235,15 @@ proc createBuffers(preview: Preview): bool =
     stderr.writeLine("lockme: warning: preview window is too small for matrix cells")
     return false
 
-  let size = width * height * 4
-  if size > int(high(int32)):
-    stderr.writeLine("lockme: warning: preview buffer too large: " & $size & " bytes")
+  let layout = matrixShmBufferLayout(width, height)
+  if not layout.valid:
+    stderr.writeLine(
+      "lockme: warning: preview buffer too large: " & $width & "x" & $height &
+      " (max " & $MatrixShmMaxDimension & "x" & $MatrixShmMaxDimension & ")"
+    )
     return false
+  let size = layout.size
+  let stride = layout.stride
 
   for i in 0 ..< preview.buffers.len:
     let buf = addr preview.buffers[i]
@@ -267,7 +273,7 @@ proc createBuffers(preview: Preview): bool =
       stderr.writeLine("lockme: warning: wl_shm pool creation failed for preview")
       return false
 
-    let wlbuf = wlShmPoolCreateBuffer(pool, 0, width.int32, height.int32, (width * 4).int32, WlShmFormatXrgb8888)
+    let wlbuf = wlShmPoolCreateBuffer(pool, 0, width.int32, height.int32, stride.int32, WlShmFormatXrgb8888)
     wlShmPoolDestroy(pool)
     if wlbuf.isNil:
       discard munmap(mapped, size)
@@ -280,6 +286,7 @@ proc createBuffers(preview: Preview): bool =
       data: cast[ptr UncheckedArray[uint32]](mapped),
       width: width,
       height: height,
+      size: size,
       busy: false
     )
     discard wl_buffer_add_listener(buf.buffer, cast[pointer](addr bufferListener), cast[pointer](buf))
@@ -298,10 +305,15 @@ proc createBlankBuffer(preview: Preview): bool =
   if preview.shm.isNil:
     stderr.writeLine("lockme: warning: wl_shm unavailable for blank preview")
     return false
-  let size = width * height * 4
-  if size > int(high(int32)):
-    stderr.writeLine("lockme: warning: blank preview buffer too large: " & $size & " bytes")
+  let layout = matrixShmBufferLayout(width, height)
+  if not layout.valid:
+    stderr.writeLine(
+      "lockme: warning: blank preview buffer too large: " & $width & "x" & $height &
+      " (max " & $MatrixShmMaxDimension & "x" & $MatrixShmMaxDimension & ")"
+    )
     return false
+  let size = layout.size
+  let stride = layout.stride
   let fd = memfd_create("lockme-preview-blank".cstring, 0)
   if fd < 0:
     stderr.writeLine("lockme: warning: memfd_create failed for blank preview buffer")
@@ -321,7 +333,7 @@ proc createBlankBuffer(preview: Preview): bool =
     discard munmap(mapped, size)
     stderr.writeLine("lockme: warning: wl_shm pool creation failed for blank preview")
     return false
-  let wlbuf = wlShmPoolCreateBuffer(pool, 0, width.int32, height.int32, (width * 4).int32, WlShmFormatXrgb8888)
+  let wlbuf = wlShmPoolCreateBuffer(pool, 0, width.int32, height.int32, stride.int32, WlShmFormatXrgb8888)
   wlShmPoolDestroy(pool)
   if wlbuf.isNil:
     discard munmap(mapped, size)
@@ -337,6 +349,7 @@ proc createBlankBuffer(preview: Preview): bool =
     data: pixels,
     width: width,
     height: height,
+    size: size,
     busy: false
   )
   discard wl_buffer_add_listener(preview.blankBuffer.buffer, cast[pointer](addr bufferListener), cast[pointer](addr preview.blankBuffer))

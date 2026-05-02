@@ -178,6 +178,24 @@ suite "matrix":
     for pixel in pixels:
       check pixel == 0xff80ff80'u32
 
+  test "matrix shm layout validates stride and size":
+    let layout = matrixShmBufferLayout(3840, 2160)
+    check layout.valid
+    check layout.stride == 3840 * 4
+    check layout.size == 3840 * 2160 * 4
+
+  test "matrix shm layout rejects invalid dimensions":
+    check not matrixShmBufferLayout(0, 2160).valid
+    check not matrixShmBufferLayout(3840, 0).valid
+    check not matrixShmBufferLayout(-1, 2160).valid
+    check not matrixShmBufferLayout(3840, -1).valid
+
+  test "matrix shm layout caps malicious dimensions":
+    check matrixShmBufferLayout(MatrixShmMaxDimension, MatrixShmMaxDimension).valid
+    check not matrixShmBufferLayout(MatrixShmMaxDimension + 1, 1).valid
+    check not matrixShmBufferLayout(1, MatrixShmMaxDimension + 1).valid
+    check not matrixShmBufferLayout((high(int32) div 4) + 1, 1).valid
+
   test "matrix ticker ignores early input wakeups":
     var ticker: MatrixTicker
     check matrixFrameTimeoutMs(ticker, true, 1000, 80) == 0

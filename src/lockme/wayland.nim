@@ -115,6 +115,7 @@ type
     buffer: ptr WlBuffer
     data: ptr UncheckedArray[uint32]
     width, height: int
+    size: int
     scale: int
     busy: bool
 
@@ -347,7 +348,7 @@ proc destroyMatrixBuffers(output: Output) =
     output.matrixGpu = nil
   for buf in mitems(output.matrixBuffers):
     if not buf.data.isNil:
-      discard munmap(buf.data, buf.width * buf.height * 4)
+      discard munmap(buf.data, buf.size)
     if not buf.buffer.isNil:
       wlBufferDestroy(buf.buffer)
     buf = MatrixBuffer()
@@ -416,10 +417,15 @@ proc createMatrixShmBuffers(output: Output) =
     output.logMatrixFailure("surface too small for matrix cells at scale " & $geometry.scale)
     return
 
-  let size = bufWidth * bufHeight * 4
-  if size > int(high(int32)):
-    output.logMatrixFailure("render buffer too large: " & $size & " bytes")
+  let layout = matrixShmBufferLayout(bufWidth, bufHeight)
+  if not layout.valid:
+    output.logMatrixFailure(
+      "render buffer too large: " & $bufWidth & "x" & $bufHeight &
+      " (max " & $MatrixShmMaxDimension & "x" & $MatrixShmMaxDimension & ")"
+    )
     return
+  let size = layout.size
+  let stride = layout.stride
 
   for i in 0 ..< output.matrixBuffers.len:
     let buf = addr output.matrixBuffers[i]
@@ -449,7 +455,7 @@ proc createMatrixShmBuffers(output: Output) =
       output.logMatrixFailure("wl_shm pool creation failed")
       return
 
-    let wlbuf = wlShmPoolCreateBuffer(pool, 0, bufWidth.int32, bufHeight.int32, (bufWidth * 4).int32, WlShmFormatXrgb8888)
+    let wlbuf = wlShmPoolCreateBuffer(pool, 0, bufWidth.int32, bufHeight.int32, stride.int32, WlShmFormatXrgb8888)
     wlShmPoolDestroy(pool)
     if wlbuf.isNil:
       discard munmap(mapped, size)
@@ -462,6 +468,7 @@ proc createMatrixShmBuffers(output: Output) =
       data: cast[ptr UncheckedArray[uint32]](mapped),
       width: bufWidth,
       height: bufHeight,
+      size: size,
       scale: geometry.scale,
       busy: false
     )

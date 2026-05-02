@@ -8,6 +8,11 @@ type
     cols*, rows*: int
     scale*: int
 
+  MatrixShmBufferLayout* = object
+    valid*: bool
+    stride*: int
+    size*: int
+
   MatrixRenderKind* = enum
     mrBitmap, mrFont
 
@@ -25,6 +30,21 @@ type
 const
   GlyphWidth = 8
   GlyphHeight = 16
+  MatrixShmMaxDimension* = 16384
+  MatrixShmBytesPerPixel = 4
+
+proc matrixShmBufferLayout*(width, height: int): MatrixShmBufferLayout =
+  if width <= 0 or height <= 0:
+    return
+  if width > MatrixShmMaxDimension or height > MatrixShmMaxDimension:
+    return
+
+  let stride64 = int64(width) * int64(MatrixShmBytesPerPixel)
+  let size64 = stride64 * int64(height)
+  if stride64 > int64(high(int32)) or size64 > int64(high(int32)):
+    return
+
+  MatrixShmBufferLayout(valid: true, stride: int(stride64), size: int(size64))
 
 proc matrixRenderGeometry*(surfaceWidth, surfaceHeight: int, scale = 1): MatrixRenderGeometry =
   let cellScale = max(scale, 1)
