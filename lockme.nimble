@@ -12,7 +12,9 @@ requires "nimkdl >= 2.1.0"
 
 const buildCommand =
   "nim c -d:release --forceBuild:on --opt:size --mm:orc -d:useMalloc " &
-  "--passC:-flto --passL:-flto --passL:-Wl,--gc-sections --passL:-Wl,-s " &
+  "--passC:-flto=auto --passC:-Wno-free-nonheap-object " &
+  "--passL:-flto=auto --passL:-Wno-free-nonheap-object " &
+  "--passL:-Wl,--gc-sections --passL:-Wl,-s " &
   "--out:lockme src/lockme.nim"
 
 const configTemplate = "examples/lockme.kdl"
