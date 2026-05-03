@@ -11,7 +11,7 @@ requires "nim >= 2.2.0"
 requires "nimkdl >= 2.1.0"
 
 const buildCommand =
-  "nim c -d:release --opt:size --mm:orc -d:useMalloc " &
+  "nim c -d:release --forceBuild:on --opt:size --mm:orc -d:useMalloc " &
   "--passC:-flto --passL:-flto --passL:-Wl,--gc-sections --passL:-Wl,-s " &
   "--out:lockme src/lockme.nim"
 
