@@ -2,6 +2,51 @@ import std/unittest
 
 import lockme/[font8x16, matrix, matrix_font, matrix_render]
 
+proc glyphCell(atlas: MatrixGlyphAtlas; glyphIdx: int): seq[uint8] =
+  result = newSeq[uint8](atlas.cellWidth * atlas.cellHeight)
+  let cellX = glyphIdx * atlas.cellWidth
+  for y in 0 ..< atlas.cellHeight:
+    for x in 0 ..< atlas.cellWidth:
+      result[y * atlas.cellWidth + x] = atlas.pixels[y * atlas.width + cellX + x]
+
+proc distinctGlyphCellCount(atlas: MatrixGlyphAtlas): int =
+  var cells: seq[seq[uint8]]
+  for glyphIdx in 0 ..< atlas.glyphCount:
+    let cell = atlas.glyphCell(glyphIdx)
+    var seen = false
+    for existing in cells:
+      if existing == cell:
+        seen = true
+        break
+    if not seen:
+      cells.add cell
+  cells.len
+
+proc visibleGlyphCount(rain: MatrixRain): int =
+  for column in rain.columns:
+    if column.headRow < 0:
+      continue
+    let visibleTop = max(0, column.tailRow)
+    let visibleBottom = min(rain.height - 1, column.headRow)
+    if visibleTop > visibleBottom:
+      continue
+    result += visibleBottom - visibleTop + 1
+
+proc distinctVisibleGlyphCount(rain: MatrixRain): int =
+  var seen = newSeq[bool](MatrixGlyphs.len)
+  for column in rain.columns:
+    if column.headRow < 0:
+      continue
+    let visibleTop = max(0, column.tailRow)
+    let visibleBottom = min(rain.height - 1, column.headRow)
+    if visibleTop > visibleBottom:
+      continue
+    for row in visibleTop .. visibleBottom:
+      let glyph = column.glyphs[row]
+      if glyph >= 0 and glyph < seen.len and not seen[glyph]:
+        seen[glyph] = true
+        inc result
+
 suite "matrix":
   test "bitmap fallback glyph table matches matrix glyph set":
     check Font8x16.len == MatrixGlyphs.len
@@ -13,6 +58,11 @@ suite "matrix":
     check atlas.width == atlas.cellWidth * MatrixGlyphs.len
     check atlas.height == atlas.cellHeight
     check atlas.pixels.len == atlas.width * atlas.height
+
+  test "bitmap glyph atlas contains distinct glyph cells":
+    let renderer = MatrixRenderer(kind: mrBitmap, scale: 2)
+    let atlas = buildMatrixGlyphAtlas(renderer)
+    check atlas.distinctGlyphCellCount() > 1
 
   test "zero-height rain is safe":
     var rain = initMatrixRain(2, 0)
@@ -99,6 +149,13 @@ suite "matrix":
         visible = true
     check visible
 
+  test "initialized rain uses more than one visible glyph":
+    var rain = initMatrixRain(40, 20)
+    for _ in 0 ..< 20:
+      rain.advance()
+    check rain.visibleGlyphCount() > 1
+    check rain.distinctVisibleGlyphCount() > 1
+
   test "column reset reuses glyph storage":
     var rain = initMatrixRain(1, 4)
     let original = cast[uint](addr rain.columns[0].glyphs[0])
@@ -148,6 +205,12 @@ suite "matrix":
       if pixel != 0xff000000'u32 and pixel != 0xff80ff80'u32:
         intermediate = true
     check intermediate
+
+  test "font glyph atlas contains distinct glyph cells":
+    let renderer = initMatrixRenderer("monospace", "", 18, 24, 2)
+    check renderer.usesFontRenderer()
+    let atlas = buildMatrixGlyphAtlas(renderer)
+    check atlas.distinctGlyphCellCount() > 1
 
   test "font renderer clips partial edge cells":
     var glyphs = newSeq[MatrixGlyphBitmap](MatrixGlyphs.len)
