@@ -1,6 +1,6 @@
 import std/unittest
 
-import lockme/[font8x16, matrix, matrix_font, matrix_render]
+import lockme/[font8x16, matrix, matrix_render]
 
 proc glyphCell(atlas: MatrixGlyphAtlas; glyphIdx: int): seq[uint8] =
   result = newSeq[uint8](atlas.cellWidth * atlas.cellHeight)
@@ -52,7 +52,7 @@ suite "matrix":
     check Font8x16.len == MatrixGlyphs.len
 
   test "glyph atlas uses matrix glyph set":
-    let renderer = MatrixRenderer(kind: mrBitmap, scale: 2)
+    let renderer = initMatrixRenderer(2)
     let atlas = buildMatrixGlyphAtlas(renderer)
     check atlas.glyphCount == MatrixGlyphs.len
     check atlas.width == atlas.cellWidth * MatrixGlyphs.len
@@ -60,7 +60,7 @@ suite "matrix":
     check atlas.pixels.len == atlas.width * atlas.height
 
   test "bitmap glyph atlas contains distinct glyph cells":
-    let renderer = MatrixRenderer(kind: mrBitmap, scale: 2)
+    let renderer = initMatrixRenderer(2)
     let atlas = buildMatrixGlyphAtlas(renderer)
     check atlas.distinctGlyphCellCount() > 1
 
@@ -117,6 +117,15 @@ suite "matrix":
     check geometry.rows == 18
     check geometry.scale == 2
 
+  test "renderer geometry uses bitmap scale":
+    let renderer = initMatrixRenderer(3)
+    let geometry = matrixRenderGeometry(799, 599, renderer)
+    check geometry.width == 792
+    check geometry.height == 576
+    check geometry.cols == 33
+    check geometry.rows == 12
+    check geometry.scale == 3
+
   test "scaled render draws larger glyph pixels":
     var rain = initMatrixRain(1, 1)
     rain.columns[0].headRow = 0
@@ -170,76 +179,6 @@ suite "matrix":
 
     check rain.columns[0].glyphs.len == 4
     check cast[uint](addr rain.columns[0].glyphs[0]) == original
-
-  test "font renderer initializes from fontconfig":
-    let renderer = initMatrixRenderer("monospace", "", 18, 24, 2)
-    check renderer.usesFontRenderer()
-    check renderer.font.cellWidth > 0
-    check renderer.font.cellHeight >= 24
-
-  test "font renderer geometry uses font metrics":
-    let renderer = initMatrixRenderer("monospace", "", 18, 24, 2)
-    check renderer.usesFontRenderer()
-    let geometry = matrixRenderGeometry(799, 599, renderer)
-    check geometry.width == geometry.cols * renderer.font.cellWidth
-    check geometry.height == geometry.rows * renderer.font.cellHeight
-    check geometry.width <= 799
-    check geometry.height <= 599
-
-  test "font renderer produces antialiased pixels":
-    let renderer = initMatrixRenderer("monospace", "", 18, 24, 2)
-    check renderer.usesFontRenderer()
-
-    var rain = initMatrixRain(1, 1)
-    rain.columns[0].headRow = 0
-    rain.columns[0].tailRow = 0
-    rain.columns[0].glyphs = @[MatrixGlyphs.high]
-
-    let width = renderer.font.cellWidth
-    let height = renderer.font.cellHeight
-    var pixels = newSeq[uint32](width * height)
-    renderMatrix(rain, renderer, cast[ptr UncheckedArray[uint32]](addr pixels[0]), width, height)
-
-    var intermediate = false
-    for pixel in pixels:
-      if pixel != 0xff000000'u32 and pixel != 0xff80ff80'u32:
-        intermediate = true
-    check intermediate
-
-  test "font glyph atlas contains distinct glyph cells":
-    let renderer = initMatrixRenderer("monospace", "", 18, 24, 2)
-    check renderer.usesFontRenderer()
-    let atlas = buildMatrixGlyphAtlas(renderer)
-    check atlas.distinctGlyphCellCount() > 1
-
-  test "font renderer clips partial edge cells":
-    var glyphs = newSeq[MatrixGlyphBitmap](MatrixGlyphs.len)
-    glyphs[MatrixGlyphs.high] = MatrixGlyphBitmap(
-      width: 12,
-      height: 12,
-      left: -2,
-      top: 6,
-      advance: 8,
-      pixels: newSeq[uint8](12 * 12)
-    )
-    for i in 0 ..< glyphs[MatrixGlyphs.high].pixels.len:
-      glyphs[MatrixGlyphs.high].pixels[i] = 255'u8
-
-    let renderer = MatrixRenderer(
-      kind: mrFont,
-      font: MatrixFont(cellWidth: 8, cellHeight: 8, baseline: 4, glyphs: glyphs)
-    )
-
-    var rain = initMatrixRain(2, 2)
-    rain.columns[0].headRow = 0
-    rain.columns[0].tailRow = 0
-    rain.columns[0].glyphs = @[MatrixGlyphs.high, MatrixGlyphs.high]
-
-    var pixels = newSeq[uint32](6 * 6)
-    renderMatrix(rain, renderer, cast[ptr UncheckedArray[uint32]](addr pixels[0]), 6, 6)
-
-    for pixel in pixels:
-      check pixel == 0xff80ff80'u32
 
   test "matrix shm layout validates stride and size":
     let layout = matrixShmBufferLayout(3840, 2160)

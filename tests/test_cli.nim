@@ -102,10 +102,6 @@ suite "cli":
     let opts = parseOptions(@[])
     check opts.matrixFrameMs == MatrixFrameMsDefault
     check opts.matrixCellScale == MatrixCellScaleDefault
-    check opts.matrixFontFamily == MatrixFontFamilyDefault
-    check opts.matrixFontPath == MatrixFontPathDefault
-    check opts.matrixFontSize == MatrixFontSizeDefault
-    check opts.matrixLineHeight == MatrixLineHeightDefault
     check opts.matrixFallSpeed == MatrixFallSpeedDefault
     check opts.matrixCycleSpeed == MatrixCycleSpeedDefault
     check opts.matrixRaindropLength == MatrixRaindropLengthDefault

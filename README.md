@@ -37,14 +37,14 @@ new one from scratch &mdash; and because I dig Nim.
 
 `lockme` needs Nim/Nimble, a C toolchain, `pkg-config`, the Nimble package
 `nimkdl >= 2.1.0`, and development headers for Wayland, Wayland EGL, EGL,
-OpenGL ES 3, xkbcommon, PAM, FreeType, and fontconfig. The OpenGL ES link
-dependency is discovered through the standard `glesv2` pkg-config module, even
-though the renderer includes GLES3 headers.
+OpenGL ES 3, xkbcommon, and PAM. The OpenGL ES link dependency is discovered
+through the standard `glesv2` pkg-config module, even though the renderer
+includes GLES3 headers.
 
 Void Linux:
 
 ```sh
-sudo xbps-install -Sy nim base-devel pkg-config wayland-devel libglvnd-devel libxkbcommon-devel pam-devel freetype-devel fontconfig-devel
+sudo xbps-install -Sy nim base-devel pkg-config wayland-devel libglvnd-devel libxkbcommon-devel pam-devel
 nimble install -y nimkdl
 ```
 
@@ -53,7 +53,7 @@ Void, Arch Linux, Debian, and Ubuntu package `nimble` with `nim`.
 Arch Linux:
 
 ```sh
-sudo pacman -S --needed nim base-devel wayland libglvnd libxkbcommon pam freetype2 fontconfig pkgconf
+sudo pacman -S --needed nim base-devel wayland libglvnd libxkbcommon pam pkgconf
 nimble install -y nimkdl
 ```
 
@@ -61,7 +61,7 @@ Debian/Ubuntu:
 
 ```sh
 sudo apt update
-sudo apt install nim build-essential libwayland-dev libegl-dev libgles-dev libxkbcommon-dev libpam0g-dev libfreetype-dev libfontconfig-dev pkg-config
+sudo apt install nim build-essential libwayland-dev libegl-dev libgles-dev libxkbcommon-dev libpam0g-dev pkg-config
 nimble install -y nimkdl
 ```
 
@@ -73,8 +73,8 @@ Build dependencies:
 - Nimble package `nimkdl >= 2.1.0`
 - a C compiler
 - `pkg-config`
-- development packages for `wayland-client`, `xkbcommon`, `pam`,
-  `freetype2`, `fontconfig`, `egl`, `glesv2`, and `wayland-egl`
+- development packages for `wayland-client`, `xkbcommon`, `pam`, `egl`,
+  `glesv2`, and `wayland-egl`
 - OpenGL ES 3 headers, normally provided by the same development package
   that provides `glesv2`
 
@@ -168,9 +168,9 @@ This opens the Matrix rain in a normal Wayland window and does not lock the
 session or start PAM.
 
 Matrix rain is rendered through a Sokol/EGL/GLES path when available. The glyph
-atlas is generated from the configured font and the built-in Koine Greek Matrix
-glyph list; if GPU setup fails, lockme warns and falls back to the existing
-software renderer. The GPU rain pipeline adapts MIT-licensed shader logic from
+atlas is generated from lockme's built-in Koine Greek 8x16 bitmap glyph list;
+if GPU setup fails, lockme warns and falls back to the existing software
+renderer. The GPU rain pipeline adapts MIT-licensed shader logic from
 Rezmason's Matrix rain renderer. While locked, `Alt-B` toggles between Matrix
 rain and a blank screen.
 
@@ -211,6 +211,8 @@ A documented template lives at `examples/lockme.kdl` and is dropped into
 `~/.config/lockme/config.kdl` by `nimble installBin`/`nimble deploy` only if
 that file does not already exist. Both `0xRRGGBB` and `#RRGGBB` color forms
 are accepted in the config file (the CLI requires the `0x` form).
+Legacy Matrix font keys from older templates are accepted as no-ops; Matrix
+glyphs now always come from the built-in bitmap font.
 
 ## Build size
 

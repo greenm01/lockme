@@ -41,12 +41,5 @@ matrix-cycle-speed 0.03
 matrix-raindrop-length 0.75
 matrix-brightness-decay 1.0
 
-// Antialiased Matrix font settings. matrix-font-path, when set, wins over
-// matrix-font-family. The cell scale is only used by the bitmap fallback.
-matrix-font-family "monospace"
-matrix-font-path ""
-matrix-font-size 18
-matrix-line-height 24
-
-// Matrix glyph scale for the raw 8x16 bitmap fallback.
+// Matrix glyph scale for the built-in 8x16 bitmap font.
 matrix-cell-scale 2

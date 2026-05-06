@@ -3,10 +3,6 @@ import std/[options, parseutils, strutils]
 const Version* = "0.1.0"
 const MatrixFrameMsDefault* = 40
 const MatrixCellScaleDefault* = 2
-const MatrixFontFamilyDefault* = "monospace"
-const MatrixFontPathDefault* = ""
-const MatrixFontSizeDefault* = 18
-const MatrixLineHeightDefault* = 24
 const MatrixFallSpeedDefault* = 0.3
 const MatrixCycleSpeedDefault* = 0.03
 const MatrixRaindropLengthDefault* = 0.75
@@ -52,10 +48,6 @@ type
     devWindow*: bool
     matrixFrameMs*: int
     matrixCellScale*: int
-    matrixFontFamily*: string
-    matrixFontPath*: string
-    matrixFontSize*: int
-    matrixLineHeight*: int
     matrixFallSpeed*: float
     matrixCycleSpeed*: float
     matrixRaindropLength*: float
@@ -102,10 +94,6 @@ proc defaultOptions*(): Options =
     logLevel: llError,
     matrixFrameMs: MatrixFrameMsDefault,
     matrixCellScale: MatrixCellScaleDefault,
-    matrixFontFamily: MatrixFontFamilyDefault,
-    matrixFontPath: MatrixFontPathDefault,
-    matrixFontSize: MatrixFontSizeDefault,
-    matrixLineHeight: MatrixLineHeightDefault,
     matrixFallSpeed: MatrixFallSpeedDefault,
     matrixCycleSpeed: MatrixCycleSpeedDefault,
     matrixRaindropLength: MatrixRaindropLengthDefault,

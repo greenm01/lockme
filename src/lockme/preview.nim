@@ -173,17 +173,9 @@ proc destroyBuffers(preview: Preview) =
 proc ensureRenderer(preview: Preview): bool =
   if not preview.renderer.isNil:
     return true
-  preview.renderer = initMatrixRenderer(
-    preview.opts.matrixFontFamily,
-    preview.opts.matrixFontPath,
-    preview.opts.matrixFontSize,
-    preview.opts.matrixLineHeight,
-    preview.opts.matrixCellScale
-  )
+  preview.renderer = initMatrixRenderer(preview.opts.matrixCellScale)
   if preview.renderer.isNil:
     return false
-  if not preview.renderer.usesFontRenderer():
-    stderr.writeLine("lockme: warning: failed to initialize antialiased matrix font renderer; using bitmap fallback")
   preview.atlas = buildMatrixGlyphAtlas(preview.renderer)
   true
 

@@ -154,10 +154,11 @@ defaults to GPU-rendered Matrix rain while idle, with `--blank` and
 `Alt-B` available for the solid blank screen. Typing and failure states
 still switch to simple solid-color buffers. This is a real usability
 feature, but it is also a larger dependency and FFI surface than the
-original solid-only build: EGL/GLES, Sokol, FreeType, and fontconfig
-are now part of the display path. The main security boundary remains
-the forked PAM child and protected password buffer, so the Matrix
-renderer does not run in the auth process.
+original solid-only build: EGL/GLES and Sokol are now part of the display
+path. The Matrix glyphs are built in, so system font updates do not affect
+rendering. The main security boundary remains the forked PAM child and
+protected password buffer, so the Matrix renderer does not run in the auth
+process.
 
 Where lockme is weaker: no formal third-party human review, no fuzzing,
 no CI, no distro packaging, single author, and now a new GPU renderer

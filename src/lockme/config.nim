@@ -16,10 +16,6 @@ const
   MatrixFrameMsMax* = 5000
   MatrixCellScaleMin* = 1
   MatrixCellScaleMax* = 8
-  MatrixFontSizeMin* = 6
-  MatrixFontSizeMax* = 96
-  MatrixLineHeightMin* = 6
-  MatrixLineHeightMax* = 160
   MatrixFallSpeedMin* = 0.01
   MatrixFallSpeedMax* = 5.0
   MatrixCycleSpeedMin* = 0.001
@@ -170,41 +166,8 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
         $MatrixCellScaleMin & " and " & $MatrixCellScaleMax)
     opts.matrixCellScale = int(value)
 
-  let matrixFontFamilyNode = doc.findNode("matrix-font-family")
-  if matrixFontFamilyNode.isSome:
-    let n = matrixFontFamilyNode.get
-    if n.args.len < 1:
-      raise newException(ValueError, "matrix-font-family requires a string value")
-    opts.matrixFontFamily = n.args[0].kString()
-
-  let matrixFontPathNode = doc.findNode("matrix-font-path")
-  if matrixFontPathNode.isSome:
-    let n = matrixFontPathNode.get
-    if n.args.len < 1:
-      raise newException(ValueError, "matrix-font-path requires a string value")
-    opts.matrixFontPath = n.args[0].kString()
-
-  let matrixFontSizeNode = doc.findNode("matrix-font-size")
-  if matrixFontSizeNode.isSome:
-    let n = matrixFontSizeNode.get
-    if n.args.len < 1:
-      raise newException(ValueError, "matrix-font-size requires an integer value")
-    let value = n.args[0].kInt()
-    if value < MatrixFontSizeMin or value > MatrixFontSizeMax:
-      raise newException(ValueError, "matrix-font-size must be between " &
-        $MatrixFontSizeMin & " and " & $MatrixFontSizeMax)
-    opts.matrixFontSize = int(value)
-
-  let matrixLineHeightNode = doc.findNode("matrix-line-height")
-  if matrixLineHeightNode.isSome:
-    let n = matrixLineHeightNode.get
-    if n.args.len < 1:
-      raise newException(ValueError, "matrix-line-height requires an integer value")
-    let value = n.args[0].kInt()
-    if value < MatrixLineHeightMin or value > MatrixLineHeightMax:
-      raise newException(ValueError, "matrix-line-height must be between " &
-        $MatrixLineHeightMin & " and " & $MatrixLineHeightMax)
-    opts.matrixLineHeight = int(value)
+  # Older generated configs may contain matrix-font-* keys. Matrix glyphs are
+  # built in now, so those keys are intentionally accepted and ignored.
 
   let matrixFallSpeedNode = doc.findNode("matrix-fall-speed")
   if matrixFallSpeedNode.isSome:

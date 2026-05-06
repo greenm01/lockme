@@ -328,17 +328,9 @@ proc wantsMatrix(lock: Lock): bool =
 proc ensureMatrixRenderer(lock: Lock): bool =
   if not lock.matrixRenderer.isNil:
     return true
-  lock.matrixRenderer = initMatrixRenderer(
-    lock.opts.matrixFontFamily,
-    lock.opts.matrixFontPath,
-    lock.opts.matrixFontSize,
-    lock.opts.matrixLineHeight,
-    lock.opts.matrixCellScale
-  )
+  lock.matrixRenderer = initMatrixRenderer(lock.opts.matrixCellScale)
   if lock.matrixRenderer.isNil:
     return false
-  if not lock.matrixRenderer.usesFontRenderer():
-    stderr.writeLine("lockme: warning: failed to initialize antialiased matrix font renderer; using bitmap fallback")
   lock.matrixAtlas = buildMatrixGlyphAtlas(lock.matrixRenderer)
   true
 
@@ -410,7 +402,7 @@ proc createMatrixShmBuffers(output: Output) =
       ": surface=" & $output.width & "x" & $output.height &
       " render=" & $bufWidth & "x" & $bufHeight &
       " cells=" & $cols & "x" & $rows &
-      " renderer=" & (if lock.matrixRenderer.usesFontRenderer(): "font" else: "bitmap") &
+      " renderer=bitmap" &
       " scale=" & $geometry.scale)
 
   if bufWidth <= 0 or bufHeight <= 0:
