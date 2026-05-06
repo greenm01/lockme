@@ -393,7 +393,7 @@ proc createMatrixShmBuffers(output: Output) =
     return
 
   if not output.matrixCpuFallbackLogged:
-    lock.logMessage(llInfo, "matrix output " & $output.name & ": using CPU renderer fallback")
+    output.logMatrixFailure("using CPU renderer fallback")
     output.matrixCpuFallbackLogged = true
 
   let geometry = matrixRenderGeometry(output.width, output.height, lock.matrixRenderer)
