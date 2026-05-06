@@ -52,7 +52,7 @@ suite "matrix":
     check Font8x16.len == MatrixGlyphs.len
 
   test "glyph atlas uses matrix glyph set":
-    let renderer = initMatrixRenderer(2)
+    let renderer = initMatrixRenderer(2.0)
     let atlas = buildMatrixGlyphAtlas(renderer)
     check atlas.glyphCount == MatrixGlyphs.len
     check atlas.width == atlas.cellWidth * MatrixGlyphs.len
@@ -60,7 +60,7 @@ suite "matrix":
     check atlas.pixels.len == atlas.width * atlas.height
 
   test "bitmap glyph atlas contains distinct glyph cells":
-    let renderer = initMatrixRenderer(2)
+    let renderer = initMatrixRenderer(2.0)
     let atlas = buildMatrixGlyphAtlas(renderer)
     check atlas.distinctGlyphCellCount() > 1
 
@@ -110,21 +110,41 @@ suite "matrix":
     check geometry.rows == 37
 
   test "render geometry supports scaled cells":
-    let geometry = matrixRenderGeometry(799, 599, 2)
+    let geometry = matrixRenderGeometry(799, 599, 2.0)
     check geometry.width == 784
     check geometry.height == 576
     check geometry.cols == 49
     check geometry.rows == 18
-    check geometry.scale == 2
+    check geometry.scale == 2.0
+
+  test "render geometry supports fractional scaled cells":
+    let geometry = matrixRenderGeometry(799, 599, 1.5)
+    check geometry.width == 792
+    check geometry.height == 576
+    check geometry.cols == 66
+    check geometry.rows == 24
+    check geometry.scale == 1.5
 
   test "renderer geometry uses bitmap scale":
-    let renderer = initMatrixRenderer(3)
+    let renderer = initMatrixRenderer(3.0)
     let geometry = matrixRenderGeometry(799, 599, renderer)
     check geometry.width == 792
     check geometry.height == 576
     check geometry.cols == 33
     check geometry.rows == 12
-    check geometry.scale == 3
+    check geometry.scale == 3.0
+
+  test "fractional glyph atlas contains intermediate alpha":
+    let renderer = initMatrixRenderer(1.5)
+    let atlas = buildMatrixGlyphAtlas(renderer)
+    check atlas.cellWidth == 12
+    check atlas.cellHeight == 24
+    var intermediate = false
+    for pixel in atlas.pixels:
+      if pixel > 0'u8 and pixel < 255'u8:
+        intermediate = true
+        break
+    check intermediate
 
   test "scaled render draws larger glyph pixels":
     var rain = initMatrixRain(1, 1)

@@ -2,7 +2,7 @@ import std/[options, parseutils, strutils]
 
 const Version* = "0.1.0"
 const MatrixFrameMsDefault* = 40
-const MatrixCellScaleDefault* = 2
+const MatrixCellScaleDefault* = 1.5
 const MatrixFallSpeedDefault* = 0.3
 const MatrixCycleSpeedDefault* = 0.03
 const MatrixRaindropLengthDefault* = 0.75
@@ -47,7 +47,7 @@ type
     blank*: bool
     devWindow*: bool
     matrixFrameMs*: int
-    matrixCellScale*: int
+    matrixCellScale*: float
     matrixFallSpeed*: float
     matrixCycleSpeed*: float
     matrixRaindropLength*: float

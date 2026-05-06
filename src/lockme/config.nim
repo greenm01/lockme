@@ -14,8 +14,8 @@ const
   ConfigFileName* = "config.kdl"
   MatrixFrameMsMin* = 30
   MatrixFrameMsMax* = 5000
-  MatrixCellScaleMin* = 1
-  MatrixCellScaleMax* = 8
+  MatrixCellScaleMin* = 1.0
+  MatrixCellScaleMax* = 8.0
   MatrixFallSpeedMin* = 0.01
   MatrixFallSpeedMax* = 5.0
   MatrixCycleSpeedMin* = 0.001
@@ -159,12 +159,12 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
   if matrixCellScaleNode.isSome:
     let n = matrixCellScaleNode.get
     if n.args.len < 1:
-      raise newException(ValueError, "matrix-cell-scale requires an integer value")
-    let value = n.args[0].kInt()
+      raise newException(ValueError, "matrix-cell-scale requires a number value")
+    let value = parseNumberArg(n.args[0], "matrix-cell-scale")
     if value < MatrixCellScaleMin or value > MatrixCellScaleMax:
       raise newException(ValueError, "matrix-cell-scale must be between " &
         $MatrixCellScaleMin & " and " & $MatrixCellScaleMax)
-    opts.matrixCellScale = int(value)
+    opts.matrixCellScale = value
 
   # Older generated configs may contain matrix-font-* keys. Matrix glyphs are
   # built in now, so those keys are intentionally accepted and ignored.

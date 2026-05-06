@@ -109,7 +109,7 @@ ignore-empty-password #false
     writeFile(path, """
 blank #true
 matrix-frame-ms 220
-matrix-cell-scale 3
+matrix-cell-scale 1.5
 matrix-fall-speed 0.4
 matrix-cycle-speed 0.05
 matrix-raindrop-length 1.25
@@ -120,7 +120,7 @@ matrix-brightness-decay 1.5
     opts.applyConfigFile(path)
     check opts.blank == true
     check opts.matrixFrameMs == 220
-    check opts.matrixCellScale == 3
+    check opts.matrixCellScale == 1.5
     check opts.matrixFallSpeed == 0.4
     check opts.matrixCycleSpeed == 0.05
     check opts.matrixRaindropLength == 1.25

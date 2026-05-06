@@ -42,4 +42,4 @@ matrix-raindrop-length 0.75
 matrix-brightness-decay 1.0
 
 // Matrix glyph scale for the built-in 8x16 bitmap font.
-matrix-cell-scale 2
+matrix-cell-scale 1.5

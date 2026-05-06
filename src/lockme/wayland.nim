@@ -116,7 +116,7 @@ type
     data: ptr UncheckedArray[uint32]
     width, height: int
     size: int
-    scale: int
+    scale: float
     busy: bool
 
   Output = ref object
@@ -132,6 +132,7 @@ type
     matrixRain: MatrixRain
     matrixGpu: MatrixGpuRenderer
     matrixGpuUnavailable: bool
+    matrixCpuFallbackLogged: bool
     matrixBuffers: array[2, MatrixBuffer]
     matrixNextBuffer: int
 
@@ -391,6 +392,10 @@ proc createMatrixShmBuffers(output: Output) =
     output.logMatrixFailure("wl_shm unavailable for CPU renderer fallback")
     return
 
+  if not output.matrixCpuFallbackLogged:
+    lock.logMessage(llInfo, "matrix output " & $output.name & ": using CPU renderer fallback")
+    output.matrixCpuFallbackLogged = true
+
   let geometry = matrixRenderGeometry(output.width, output.height, lock.matrixRenderer)
   let cols = geometry.cols
   let rows = geometry.rows
@@ -402,7 +407,7 @@ proc createMatrixShmBuffers(output: Output) =
       ": surface=" & $output.width & "x" & $output.height &
       " render=" & $bufWidth & "x" & $bufHeight &
       " cells=" & $cols & "x" & $rows &
-      " renderer=bitmap" &
+      " renderer=cpu-bitmap" &
       " scale=" & $geometry.scale)
 
   if bufWidth <= 0 or bufHeight <= 0:
