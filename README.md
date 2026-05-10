@@ -207,7 +207,7 @@ lockme --input-color 0x111111 --input-color 0x222222 --input-color 0x333333
 set in the config file. Parse and validation errors abort startup with a
 diagnostic on stderr.
 
-A documented template lives at `examples/lockme.kdl` and is dropped into
+A documented template lives at `examples/config.kdl` and is dropped into
 `~/.config/lockme/config.kdl` by `nimble installBin`/`nimble deploy` only if
 that file does not already exist. Both `0xRRGGBB` and `#RRGGBB` color forms
 are accepted in the config file (the CLI requires the `0x` form).

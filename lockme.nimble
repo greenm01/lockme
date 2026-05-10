@@ -17,7 +17,7 @@ const buildCommand =
   "--passL:-Wl,--gc-sections --passL:-Wl,-s " &
   "--out:lockme src/lockme.nim"
 
-const configTemplate = "examples/lockme.kdl"
+const configTemplate = "examples/config.kdl"
 const userConfigDest = "$HOME/.config/lockme/config.kdl"
 
 task build, "Build lockme":
