@@ -1,6 +1,6 @@
 import std/unittest
 
-import lockme/[font8x16, matrix, matrix_render]
+import lockme/[font8x16, font64x128, matrix, matrix_render]
 
 proc glyphCell(atlas: MatrixGlyphAtlas; glyphIdx: int): seq[uint8] =
   result = newSeq[uint8](atlas.cellWidth * atlas.cellHeight)
@@ -48,8 +48,24 @@ proc distinctVisibleGlyphCount(rain: MatrixRain): int =
         inc result
 
 suite "matrix":
-  test "bitmap fallback glyph table matches matrix glyph set":
+  test "glyph sources match matrix glyph set":
     check Font8x16.len == MatrixGlyphs.len
+    check KoineFont64x128.len == MatrixGlyphs.len
+    check HighResGlyphWidth == 64
+    check HighResGlyphHeight == 128
+    check KoineFont64x128[0].len == HighResGlyphWidth * HighResGlyphHeight
+
+  test "high-resolution glyph source contains coverage alpha":
+    var intermediate = false
+    var opaque = false
+    for glyph in KoineFont64x128:
+      for pixel in glyph:
+        if pixel > 0'u8 and pixel < 255'u8:
+          intermediate = true
+        if pixel == 255'u8:
+          opaque = true
+    check intermediate
+    check opaque
 
   test "glyph atlas uses matrix glyph set":
     let renderer = initMatrixRenderer(2.0)
@@ -59,7 +75,7 @@ suite "matrix":
     check atlas.height == atlas.cellHeight
     check atlas.pixels.len == atlas.width * atlas.height
 
-  test "bitmap glyph atlas contains distinct glyph cells":
+  test "glyph atlas contains distinct glyph cells":
     let renderer = initMatrixRenderer(2.0)
     let atlas = buildMatrixGlyphAtlas(renderer)
     check atlas.distinctGlyphCellCount() > 1
@@ -125,7 +141,7 @@ suite "matrix":
     check geometry.rows == 24
     check geometry.scale == 1.5
 
-  test "renderer geometry uses bitmap scale":
+  test "renderer geometry uses glyph scale":
     let renderer = initMatrixRenderer(3.0)
     let geometry = matrixRenderGeometry(799, 599, renderer)
     check geometry.width == 792
@@ -146,7 +162,7 @@ suite "matrix":
         break
     check intermediate
 
-  test "scaled render draws larger glyph pixels":
+  test "scaled render draws a larger antialiased glyph":
     var rain = initMatrixRain(1, 1)
     rain.columns[0].headRow = 0
     rain.columns[0].tailRow = 0
@@ -165,7 +181,7 @@ suite "matrix":
     for pixel in scaled:
       if pixel != 0xff000000'u32:
         inc scaledLit
-    check scaledLit == normalLit * 4
+    check scaledLit > normalLit
 
   test "initialized rain renders visible pixels":
     var rain = initMatrixRain(10, 10)

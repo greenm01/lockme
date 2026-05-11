@@ -407,7 +407,7 @@ proc createMatrixShmBuffers(output: Output) =
       ": surface=" & $output.width & "x" & $output.height &
       " render=" & $bufWidth & "x" & $bufHeight &
       " cells=" & $cols & "x" & $rows &
-      " renderer=cpu-bitmap" &
+      " renderer=cpu-alpha" &
       " scale=" & $geometry.scale)
 
   if bufWidth <= 0 or bufHeight <= 0:

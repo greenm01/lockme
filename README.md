@@ -168,9 +168,9 @@ This opens the Matrix rain in a normal Wayland window and does not lock the
 session or start PAM.
 
 Matrix rain is rendered through a Sokol/EGL/GLES path when available. The glyph
-atlas is generated from lockme's built-in Koine Greek 8x16 bitmap glyph list;
-if GPU setup fails, lockme warns and falls back to the existing software
-renderer. The GPU rain pipeline adapts MIT-licensed shader logic from
+atlas is generated from lockme's built-in Koine Greek high-resolution alpha
+glyph source; if GPU setup fails, lockme warns and falls back to the existing
+software renderer. The GPU rain pipeline adapts MIT-licensed shader logic from
 Rezmason's Matrix rain renderer. While locked, `Alt-B` toggles between Matrix
 rain and a blank screen.
 
@@ -212,14 +212,14 @@ A documented template lives at `examples/config.kdl` and is dropped into
 that file does not already exist. Both `0xRRGGBB` and `#RRGGBB` color forms
 are accepted in the config file (the CLI requires the `0x` form).
 Legacy Matrix font keys from older templates are accepted as no-ops; Matrix
-glyphs now always come from the built-in bitmap font.
+glyphs now always come from the built-in Koine Greek glyph source.
 
 ## Build size
 
 The release build uses size-oriented flags (`--opt:size --mm:orc
 -d:useMalloc -flto -Wl,--gc-sections -Wl,-s`) so that the KDL parser
 and its transitive dependencies (`bigints`, `unicodedb`) do not bloat
-the binary. The current stripped output is ~454 KB. Run `nimble
+the binary. The current stripped output is ~889 KB. Run `nimble
 sizecheck` to print the size of your build.
 
 ## Platform requirements

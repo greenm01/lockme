@@ -41,5 +41,5 @@ matrix-cycle-speed 0.03
 matrix-raindrop-length 0.75
 matrix-brightness-decay 1.0
 
-// Matrix glyph scale for the built-in 8x16 bitmap font.
+// Matrix glyph scale for the built-in Koine Greek glyph source.
 matrix-cell-scale 1.5

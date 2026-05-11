@@ -1,7 +1,7 @@
 import std/math
 
 import ./matrix
-import ./font8x16
+import ./font64x128
 
 type
   MatrixRenderGeometry* = object
@@ -65,43 +65,30 @@ proc matrixRenderGeometry*(surfaceWidth, surfaceHeight: int, renderer: MatrixRen
   let scale = if renderer.isNil: 1.0 else: renderer.scale
   matrixRenderGeometry(surfaceWidth, surfaceHeight, scale)
 
+proc drawScaledGlyph(data: ptr UncheckedArray[uint32], width, height: int, x, y: int, glyphIdx: int, color: uint32, cellWidth, cellHeight: int; font: Font64x128)
+
 proc drawGlyph*(data: ptr UncheckedArray[uint32], width, height: int, x, y: int, glyphIdx: int, color: uint32, scale = 1) =
-  if glyphIdx < 0 or glyphIdx >= Font8x16.len: return
+  if glyphIdx < 0 or glyphIdx >= KoineFont64x128.len: return
   let cellScale = max(scale, 1)
-  let glyph = Font8x16[glyphIdx]
-  for i in 0 ..< GlyphHeight:
-    let row = glyph[i]
-    for j in 0 ..< GlyphWidth:
-      if (row and (0x80'u8 shr j)) != 0:
-        let px = x + j * cellScale
-        let py = y + i * cellScale
-        for sy in 0 ..< cellScale:
-          let ty = py + sy
-          if ty < 0 or ty >= height: continue
-          for sx in 0 ..< cellScale:
-            let tx = px + sx
-            if tx < 0 or tx >= width: continue
-            data[ty * width + tx] = color
+  drawScaledGlyph(data, width, height, x, y, glyphIdx, color,
+    GlyphWidth * cellScale, GlyphHeight * cellScale, KoineFont64x128)
 
-proc bitmapGlyphBit(glyph: Glyph8x16; x, y: int): float =
-  if x < 0 or x >= GlyphWidth or y < 0 or y >= GlyphHeight:
+proc highResGlyphAlpha(glyph: Glyph64x128; x, y: int): float =
+  if x < 0 or x >= HighResGlyphWidth or y < 0 or y >= HighResGlyphHeight:
     return 0.0
-  if (glyph[y] and (0x80'u8 shr x)) != 0:
-    1.0
-  else:
-    0.0
+  float(glyph[y * HighResGlyphWidth + x]) / 255.0
 
-proc sampleBitmapGlyph(glyph: Glyph8x16; srcX, srcY: float): uint8 =
+proc sampleHighResGlyph(glyph: Glyph64x128; srcX, srcY: float): uint8 =
   let x = srcX - 0.5
   let y = srcY - 0.5
   let x0 = int(floor(x))
   let y0 = int(floor(y))
   let fx = x - float(x0)
   let fy = y - float(y0)
-  let a00 = bitmapGlyphBit(glyph, x0, y0)
-  let a10 = bitmapGlyphBit(glyph, x0 + 1, y0)
-  let a01 = bitmapGlyphBit(glyph, x0, y0 + 1)
-  let a11 = bitmapGlyphBit(glyph, x0 + 1, y0 + 1)
+  let a00 = highResGlyphAlpha(glyph, x0, y0)
+  let a10 = highResGlyphAlpha(glyph, x0 + 1, y0)
+  let a01 = highResGlyphAlpha(glyph, x0, y0 + 1)
+  let a11 = highResGlyphAlpha(glyph, x0 + 1, y0 + 1)
   let top = a00 * (1.0 - fx) + a10 * fx
   let bottom = a01 * (1.0 - fx) + a11 * fx
   uint8(int((top * (1.0 - fy) + bottom * fy) * 255.0 + 0.5))
@@ -116,16 +103,16 @@ proc scaledColor(color: uint32; alpha: uint8): uint32 {.inline.} =
   let b = div255Floor((color and 0xff'u32) * a)
   0xff000000'u32 or (r shl 16) or (g shl 8) or b
 
-proc drawBitmapGlyphAlpha(atlas: var MatrixGlyphAtlas; glyphIdx, cellX: int) =
-  if glyphIdx < 0 or glyphIdx >= Font8x16.len: return
-  let glyph = Font8x16[glyphIdx]
-  let scaleX = float(GlyphWidth) / float(atlas.cellWidth)
-  let scaleY = float(GlyphHeight) / float(atlas.cellHeight)
+proc drawHighResGlyphAlpha(atlas: var MatrixGlyphAtlas; glyphIdx, cellX: int; font: Font64x128) =
+  if glyphIdx < 0 or glyphIdx >= font.len: return
+  let glyph = font[glyphIdx]
+  let scaleX = float(HighResGlyphWidth) / float(atlas.cellWidth)
+  let scaleY = float(HighResGlyphHeight) / float(atlas.cellHeight)
   for row in 0 ..< atlas.cellHeight:
     let srcY = (float(row) + 0.5) * scaleY
     for col in 0 ..< atlas.cellWidth:
       let srcX = (float(col) + 0.5) * scaleX
-      atlas.pixels[row * atlas.width + cellX + col] = sampleBitmapGlyph(glyph, srcX, srcY)
+      atlas.pixels[row * atlas.width + cellX + col] = sampleHighResGlyph(glyph, srcX, srcY)
 
 proc buildMatrixGlyphAtlas*(renderer: MatrixRenderer): MatrixGlyphAtlas =
   result.glyphCount = MatrixGlyphs.len
@@ -136,7 +123,7 @@ proc buildMatrixGlyphAtlas*(renderer: MatrixRenderer): MatrixGlyphAtlas =
   result.height = result.cellHeight
   result.pixels = newSeq[uint8](result.width * result.height)
   for glyphIdx in 0 ..< result.glyphCount:
-    result.drawBitmapGlyphAlpha(glyphIdx, glyphIdx * result.cellWidth)
+    result.drawHighResGlyphAlpha(glyphIdx, glyphIdx * result.cellWidth, KoineFont64x128)
 
 proc renderMatrix*(rain: MatrixRain, data: ptr UncheckedArray[uint32], width, height: int, scale = 1) =
   # Clear buffer to black
@@ -165,11 +152,11 @@ proc renderMatrix*(rain: MatrixRain, data: ptr UncheckedArray[uint32], width, he
       let color = if yIdx == column.headRow: headColor else: trailColor
       drawGlyph(data, width, height, x, y, column.glyphs[yIdx], color, cellScale)
 
-proc drawScaledGlyph(data: ptr UncheckedArray[uint32], width, height: int, x, y: int, glyphIdx: int, color: uint32, cellWidth, cellHeight: int) =
-  if glyphIdx < 0 or glyphIdx >= Font8x16.len: return
-  let glyph = Font8x16[glyphIdx]
-  let scaleX = float(GlyphWidth) / float(cellWidth)
-  let scaleY = float(GlyphHeight) / float(cellHeight)
+proc drawScaledGlyph(data: ptr UncheckedArray[uint32], width, height: int, x, y: int, glyphIdx: int, color: uint32, cellWidth, cellHeight: int; font: Font64x128) =
+  if glyphIdx < 0 or glyphIdx >= font.len: return
+  let glyph = font[glyphIdx]
+  let scaleX = float(HighResGlyphWidth) / float(cellWidth)
+  let scaleY = float(HighResGlyphHeight) / float(cellHeight)
   for row in 0 ..< cellHeight:
     let ty = y + row
     if ty < 0 or ty >= height: continue
@@ -178,11 +165,11 @@ proc drawScaledGlyph(data: ptr UncheckedArray[uint32], width, height: int, x, y:
       let tx = x + col
       if tx < 0 or tx >= width: continue
       let srcX = (float(col) + 0.5) * scaleX
-      let alpha = sampleBitmapGlyph(glyph, srcX, srcY)
+      let alpha = sampleHighResGlyph(glyph, srcX, srcY)
       if alpha != 0:
         data[ty * width + tx] = scaledColor(color, alpha)
 
-proc renderMatrixScaled(rain: MatrixRain, data: ptr UncheckedArray[uint32], width, height: int, scale: float) =
+proc renderMatrixScaled(rain: MatrixRain, data: ptr UncheckedArray[uint32], width, height: int, scale: float; font: Font64x128) =
   for i in 0 ..< width * height:
     data[i] = 0xff000000'u32
 
@@ -204,8 +191,8 @@ proc renderMatrixScaled(rain: MatrixRain, data: ptr UncheckedArray[uint32], widt
       let y = yIdx * cellHeight
       if y >= height: break
       let color = if yIdx == column.headRow: headColor else: trailColor
-      drawScaledGlyph(data, width, height, x, y, column.glyphs[yIdx], color, cellWidth, cellHeight)
+      drawScaledGlyph(data, width, height, x, y, column.glyphs[yIdx], color, cellWidth, cellHeight, font)
 
 proc renderMatrix*(rain: MatrixRain, renderer: MatrixRenderer, data: ptr UncheckedArray[uint32], width, height: int) =
   let scale = if renderer.isNil: 1.0 else: renderer.scale
-  renderMatrixScaled(rain, data, width, height, scale)
+  renderMatrixScaled(rain, data, width, height, scale, KoineFont64x128)
