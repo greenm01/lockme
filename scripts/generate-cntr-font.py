@@ -24,7 +24,7 @@ GLYPHS = [
 ]
 
 WIDTH = 64
-HEIGHT = 128
+HEIGHT = 64
 OVERSAMPLE = 4
 FONT_SIZE = 66
 
@@ -118,15 +118,15 @@ const
   KoineFontRleLen = {len(runs)}
 
 type
-  Glyph64x128* = array[HighResGlyphWidth * HighResGlyphHeight, uint8]
-  Font64x128* = array[KoineGlyphCount, Glyph64x128]
+  HighResGlyph* = array[HighResGlyphWidth * HighResGlyphHeight, uint8]
+  HighResFont* = array[KoineGlyphCount, HighResGlyph]
   GlyphRun = tuple[count: uint16, value: uint8]
 
 const KoineFontRle: array[KoineFontRleLen, GlyphRun] = [
 {nim_rle_literal(runs)}
 ]
 
-proc decodeFont64x128(): Font64x128 =
+proc decodeHighResFont(): HighResFont =
   var glyphIdx = 0
   var pixelIdx = 0
   for run in KoineFontRle:
@@ -140,7 +140,7 @@ proc decodeFont64x128(): Font64x128 =
   doAssert glyphIdx == KoineGlyphCount
   doAssert pixelIdx == 0
 
-let KoineFont64x128* = decodeFont64x128()
+let KoineHighResFont* = decodeHighResFont()
 """
     out_path.write_text(body, encoding="utf-8")
 

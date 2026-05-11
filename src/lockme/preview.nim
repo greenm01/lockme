@@ -170,10 +170,22 @@ proc destroyBuffers(preview: Preview) =
   preview.nextBuffer = 0
   preview.gpuUnavailable = false
 
+proc sameMatrixScale(a, b: float): bool =
+  abs(a - b) < 0.001
+
+proc desiredMatrixScale(preview: Preview): float =
+  matrixEffectiveScale(preview.opts.matrixCellScale, int(preview.width))
+
 proc ensureRenderer(preview: Preview): bool =
-  if not preview.renderer.isNil:
+  let scale = preview.desiredMatrixScale()
+  if not preview.renderer.isNil and sameMatrixScale(preview.renderer.scale, scale):
     return true
-  preview.renderer = initMatrixRenderer(preview.opts.matrixCellScale)
+  if not preview.renderer.isNil:
+    preview.destroyBuffers()
+    preview.renderer.close()
+    preview.renderer = nil
+    preview.atlas = MatrixGlyphAtlas()
+  preview.renderer = initMatrixRenderer(scale)
   if preview.renderer.isNil:
     return false
   preview.atlas = buildMatrixGlyphAtlas(preview.renderer)

@@ -326,10 +326,30 @@ proc nextInputState(lock: Lock): ColorState =
 proc wantsMatrix(lock: Lock): bool =
   not lock.blankActive and lock.color.kind == ckInit and lock.password.len == 0
 
+proc destroyMatrixBuffers(output: Output)
+
+proc sameMatrixScale(a, b: float): bool =
+  abs(a - b) < 0.001
+
+proc matrixScaleWidth(lock: Lock): int =
+  for output in lock.outputs:
+    if output.configured:
+      result = max(result, int(output.width))
+
+proc desiredMatrixScale(lock: Lock): float =
+  matrixEffectiveScale(lock.opts.matrixCellScale, lock.matrixScaleWidth())
+
 proc ensureMatrixRenderer(lock: Lock): bool =
-  if not lock.matrixRenderer.isNil:
+  let scale = lock.desiredMatrixScale()
+  if not lock.matrixRenderer.isNil and sameMatrixScale(lock.matrixRenderer.scale, scale):
     return true
-  lock.matrixRenderer = initMatrixRenderer(lock.opts.matrixCellScale)
+  if not lock.matrixRenderer.isNil:
+    for output in lock.outputs:
+      output.destroyMatrixBuffers()
+    lock.matrixRenderer.close()
+    lock.matrixRenderer = nil
+    lock.matrixAtlas = MatrixGlyphAtlas()
+  lock.matrixRenderer = initMatrixRenderer(scale)
   if lock.matrixRenderer.isNil:
     return false
   lock.matrixAtlas = buildMatrixGlyphAtlas(lock.matrixRenderer)
@@ -935,7 +955,7 @@ proc lockSurfaceConfigure(data: pointer; surface: ptr ExtSessionLockSurface; ser
   output.height = int32(min(height, uint32(high(int32))))
   lockSurfaceAckConfigure(surface, serial)
   output.createMatrixShmBuffers()
-  output.presentOutput()
+  output.lock.presentAll()
 
 proc flushAndPrepareRead(lock: Lock) =
   while wl_display_prepare_read(lock.display) != 0:

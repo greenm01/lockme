@@ -50,15 +50,15 @@ proc distinctVisibleGlyphCount(rain: MatrixRain): int =
 suite "matrix":
   test "glyph sources match matrix glyph set":
     check KoineGlyphCount == MatrixGlyphs.len
-    check KoineFont64x128.len == MatrixGlyphs.len
+    check KoineHighResFont.len == MatrixGlyphs.len
     check HighResGlyphWidth == 64
-    check HighResGlyphHeight == 128
-    check KoineFont64x128[0].len == HighResGlyphWidth * HighResGlyphHeight
+    check HighResGlyphHeight == 64
+    check KoineHighResFont[0].len == HighResGlyphWidth * HighResGlyphHeight
 
   test "high-resolution glyph source contains visible coverage alpha":
     var intermediate = false
     var strong = false
-    for glyph in KoineFont64x128:
+    for glyph in KoineHighResFont:
       var visible = false
       for pixel in glyph:
         if pixel > 0'u8:
@@ -120,30 +120,43 @@ suite "matrix":
     check geometry.width == 3840
     check geometry.height == 2160
     check geometry.cols == 480
-    check geometry.rows == 135
+    check geometry.rows == 270
 
   test "render geometry keeps small surfaces on cell boundaries":
     let geometry = matrixRenderGeometry(799, 599)
     check geometry.width == 792
     check geometry.height == 592
     check geometry.cols == 99
-    check geometry.rows == 37
+    check geometry.rows == 74
 
   test "render geometry supports scaled cells":
     let geometry = matrixRenderGeometry(799, 599, 2.0)
     check geometry.width == 784
-    check geometry.height == 576
+    check geometry.height == 592
     check geometry.cols == 49
-    check geometry.rows == 18
+    check geometry.rows == 37
     check geometry.scale == 2.0
 
   test "render geometry supports fractional scaled cells":
     let geometry = matrixRenderGeometry(799, 599, 1.5)
     check geometry.width == 792
-    check geometry.height == 576
+    check geometry.height == 588
     check geometry.cols == 66
-    check geometry.rows == 24
+    check geometry.rows == 49
     check geometry.scale == 1.5
+
+  test "auto matrix scale matches eighty columns":
+    check matrixEffectiveScale(0.0, 1920) == 3.0
+    check matrixEffectiveScale(0.0, 2560) == 4.0
+    check matrixEffectiveScale(0.0, 3840) == 6.0
+    check matrixEffectiveScale(0.0, 320) == 1.0
+    check matrixEffectiveScale(1.5, 3840) == 1.5
+
+    let geometry = matrixRenderGeometry(1920, 1080, matrixEffectiveScale(0.0, 1920))
+    check geometry.width == 1920
+    check geometry.height == 1080
+    check geometry.cols == MatrixTargetColumns
+    check geometry.rows == 45
 
   test "renderer geometry uses glyph scale":
     let renderer = initMatrixRenderer(3.0)
@@ -151,14 +164,14 @@ suite "matrix":
     check geometry.width == 792
     check geometry.height == 576
     check geometry.cols == 33
-    check geometry.rows == 12
+    check geometry.rows == 24
     check geometry.scale == 3.0
 
   test "fractional glyph atlas contains intermediate alpha":
     let renderer = initMatrixRenderer(1.5)
     let atlas = buildMatrixGlyphAtlas(renderer)
     check atlas.cellWidth == 12
-    check atlas.cellHeight == 24
+    check atlas.cellHeight == 12
     var intermediate = false
     for pixel in atlas.pixels:
       if pixel > 0'u8 and pixel < 255'u8:
@@ -172,10 +185,10 @@ suite "matrix":
     rain.columns[0].tailRow = 0
     rain.columns[0].glyphs = @[MatrixGlyphs.high]
 
-    var normal = newSeq[uint32](8 * 16)
-    var scaled = newSeq[uint32](16 * 32)
-    renderMatrix(rain, cast[ptr UncheckedArray[uint32]](addr normal[0]), 8, 16)
-    renderMatrix(rain, cast[ptr UncheckedArray[uint32]](addr scaled[0]), 16, 32, 2)
+    var normal = newSeq[uint32](8 * 8)
+    var scaled = newSeq[uint32](16 * 16)
+    renderMatrix(rain, cast[ptr UncheckedArray[uint32]](addr normal[0]), 8, 8)
+    renderMatrix(rain, cast[ptr UncheckedArray[uint32]](addr scaled[0]), 16, 16, 2)
 
     var normalLit = 0
     var scaledLit = 0
@@ -189,8 +202,8 @@ suite "matrix":
 
   test "initialized rain renders visible pixels":
     var rain = initMatrixRain(10, 10)
-    var pixels = newSeq[uint32](80 * 160)
-    renderMatrix(rain, cast[ptr UncheckedArray[uint32]](addr pixels[0]), 80, 160)
+    var pixels = newSeq[uint32](80 * 80)
+    renderMatrix(rain, cast[ptr UncheckedArray[uint32]](addr pixels[0]), 80, 80)
 
     var visible = false
     for pixel in pixels:
