@@ -82,6 +82,28 @@ proc parseNumberArg(value: KdlVal; name: string): float =
     except CatchableError:
       raise newException(ValueError, name & " requires a number value")
 
+proc parseMatrixCellScale(value: KdlVal): float =
+  var raw: string
+  var isString = false
+  try:
+    raw = value.kString()
+    isString = true
+  except CatchableError:
+    discard
+  if isString:
+    if raw == "auto":
+      return MatrixCellScaleAuto
+    raise newException(ValueError,
+      "matrix-cell-scale requires \"auto\" or a number value")
+
+  let scale = parseNumberArg(value, "matrix-cell-scale")
+  if scale == MatrixCellScaleAuto:
+    return MatrixCellScaleAuto
+  if scale < MatrixCellScaleMin or scale > MatrixCellScaleMax:
+    raise newException(ValueError, "matrix-cell-scale must be \"auto\", 0, or between " &
+      $MatrixCellScaleMin & " and " & $MatrixCellScaleMax)
+  scale
+
 proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
   ## Applies values from ``doc`` to ``opts`` only for fields that the CLI
   ## did not explicitly set (per ``opts.setFlags``).
@@ -159,12 +181,9 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
   if matrixCellScaleNode.isSome:
     let n = matrixCellScaleNode.get
     if n.args.len < 1:
-      raise newException(ValueError, "matrix-cell-scale requires a number value")
-    let value = parseNumberArg(n.args[0], "matrix-cell-scale")
-    if value < MatrixCellScaleMin or value > MatrixCellScaleMax:
-      raise newException(ValueError, "matrix-cell-scale must be between " &
-        $MatrixCellScaleMin & " and " & $MatrixCellScaleMax)
-    opts.matrixCellScale = value
+      raise newException(ValueError,
+        "matrix-cell-scale requires \"auto\" or a number value")
+    opts.matrixCellScale = parseMatrixCellScale(n.args[0])
 
   # Older generated configs may contain matrix-font-* keys. Matrix glyphs are
   # built in now, so those keys are intentionally accepted and ignored.

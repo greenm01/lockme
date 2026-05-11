@@ -214,8 +214,8 @@ are accepted in the config file (the CLI requires the `0x` form).
 Legacy Matrix font keys from older templates are accepted as no-ops; Matrix
 glyphs now always come from the built-in Koine Greek glyph source.
 By default, Matrix glyph size follows the upstream Matrix renderer's 80-column
-grid. Set `matrix-cell-scale` in the config to a number from 1.0 through 8.0
-only if you want a fixed glyph scale instead of responsive sizing.
+grid. Set `matrix-cell-scale "auto"` in the config for responsive sizing, or
+set it to a number from 1.0 through 8.0 only if you want a fixed glyph scale.
 
 The built-in Matrix glyph alpha data is generated from the vendored CNTR
 `KoineGreek.ttf` font in `third_party/cntr-font`, copyright 2012-2023 Alan

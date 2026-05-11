@@ -139,6 +139,22 @@ matrix-line-height 4
     opts.applyConfigFile(path)
     check opts.matrixCellScale == MatrixCellScaleDefault
 
+  test "matrix-cell-scale auto string selects responsive scale":
+    let path = getTempDir() / "lockme_test_matrix_cell_scale_auto.kdl"
+    writeFile(path, "matrix-cell-scale \"auto\"\n")
+    defer: removeFile(path)
+    var opts = defaultOptions()
+    opts.applyConfigFile(path)
+    check opts.matrixCellScale == MatrixCellScaleAuto
+
+  test "matrix-cell-scale zero selects responsive scale":
+    let path = getTempDir() / "lockme_test_matrix_cell_scale_zero.kdl"
+    writeFile(path, "matrix-cell-scale 0\n")
+    defer: removeFile(path)
+    var opts = defaultOptions()
+    opts.applyConfigFile(path)
+    check opts.matrixCellScale == MatrixCellScaleAuto
+
   test "CLI blank wins over config":
     let path = getTempDir() / "lockme_test_blank_override.kdl"
     writeFile(path, "blank #false\n")
@@ -164,12 +180,13 @@ matrix-line-height 4
       opts.applyConfigFile(path)
 
   test "matrix-cell-scale range is validated":
-    let path = getTempDir() / "lockme_test_matrix_cell_scale_bad.kdl"
-    writeFile(path, "matrix-cell-scale 0\n")
-    defer: removeFile(path)
-    var opts = defaultOptions()
-    expect ValueError:
-      opts.applyConfigFile(path)
+    for value in ["-1", "0.5", "9", "\"manual\""]:
+      let path = getTempDir() / "lockme_test_matrix_cell_scale_bad.kdl"
+      writeFile(path, "matrix-cell-scale " & value & "\n")
+      defer: removeFile(path)
+      var opts = defaultOptions()
+      expect ValueError:
+        opts.applyConfigFile(path)
 
   test "matrix timing ranges are validated":
     for name in ["matrix-fall-speed", "matrix-cycle-speed", "matrix-raindrop-length", "matrix-brightness-decay"]:

@@ -36,6 +36,7 @@ matrix-frame-ms 40
 // Matrix rain timing. These use the same normalized shape as the GPU shader:
 // fall speed controls vertical motion, cycle speed controls glyph changes,
 // raindrop length controls trail spacing, and brightness decay controls fade.
+matrix-cell-scale "auto"
 matrix-fall-speed 0.3
 matrix-cycle-speed 0.03
 matrix-raindrop-length 0.75
