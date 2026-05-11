@@ -12,7 +12,7 @@ who has to pick one and live with it.
 | swaylock | C        | 1.8.5    | ~820                 | 106 KB          |
 | waylock  | Zig      | 1.7.0-dev (HEAD 9523ce0) | ~1,310 | 1.9 MB        |
 | hyprlock | C++      | 0.9.5    | ~9,330 (whole tree)  | 825 KB          |
-| lockme   | Nim      | 0.1.0    | ~1,300               | 454 KB          |
+| lockme   | Nim      | 0.1.0    | ~1,300               | 446 KiB         |
 
 Sizes are the as-shipped binaries on the author's Arch system
 (`/usr/bin/{swaylock,waylock,hyprlock}` from the official packages and

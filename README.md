@@ -20,7 +20,7 @@ solid configurable palette, failed auth shows a solid failure color, and `Alt-B`
 toggles between Matrix and a blank screen. Colors and the rest of the runtime
 knobs live in a small KDL 2.0 config file (see [Configuration](#configuration)).
 
-It is small on disk too: a stripped release binary is **~454 KB**,
+It is small on disk too: a stripped release binary is **446 KiB**,
 well under the size of `hyprlock` and several times smaller than
 `waylock` while shipping more hardening than either. See
 [compare.md](compare.md) for the full security and size comparison
@@ -219,8 +219,8 @@ glyphs now always come from the built-in Koine Greek glyph source.
 The release build uses size-oriented flags (`--opt:size --mm:orc
 -d:useMalloc -flto -Wl,--gc-sections -Wl,-s`) so that the KDL parser
 and its transitive dependencies (`bigints`, `unicodedb`) do not bloat
-the binary. The current stripped output is ~889 KB. Run `nimble
-sizecheck` to print the size of your build.
+the binary. The current stripped output is 446 KiB (456,120 bytes).
+Run `nimble sizecheck` to print the size of your build.
 
 ## Platform requirements
 
