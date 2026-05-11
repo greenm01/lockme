@@ -12,7 +12,7 @@ who has to pick one and live with it.
 | swaylock | C        | 1.8.5    | ~820                 | 106 KB          |
 | waylock  | Zig      | 1.7.0-dev (HEAD 9523ce0) | ~1,310 | 1.9 MB        |
 | hyprlock | C++      | 0.9.5    | ~9,330 (whole tree)  | 825 KB          |
-| lockme   | Nim      | 0.1.0    | ~1,300               | 446 KiB         |
+| lockme   | Nim      | 0.1.0    | ~1,300               | 558 KiB         |
 
 Sizes are the as-shipped binaries on the author's Arch system
 (`/usr/bin/{swaylock,waylock,hyprlock}` from the official packages and
@@ -155,7 +155,8 @@ defaults to GPU-rendered Matrix rain while idle, with `--blank` and
 still switch to simple solid-color buffers. This is a real usability
 feature, but it is also a larger dependency and FFI surface than the
 original solid-only build: EGL/GLES and Sokol are now part of the display
-path. The Matrix glyphs are built in, so system font updates do not affect
+path. The Matrix glyphs are built in from a generated alpha source derived from
+the vendored CNTR Koine Greek font, so system font updates do not affect
 rendering. The main security boundary remains the forked PAM child and
 protected password buffer, so the Matrix renderer does not run in the auth
 process.

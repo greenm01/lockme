@@ -56,3 +56,6 @@ task sizecheck, "Build release and report final binary size":
 
 task regenProtocols, "Regenerate checked-in Wayland protocol stubs from vendored XML":
   exec "scripts/regenerate-protocols.sh"
+
+task regenFont, "Regenerate checked-in Matrix glyph alpha data from the vendored CNTR font":
+  exec "python3 scripts/generate-cntr-font.py"

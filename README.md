@@ -20,7 +20,7 @@ solid configurable palette, failed auth shows a solid failure color, and `Alt-B`
 toggles between Matrix and a blank screen. Colors and the rest of the runtime
 knobs live in a small KDL 2.0 config file (see [Configuration](#configuration)).
 
-It is small on disk too: a stripped release binary is **446 KiB**,
+It is small on disk too: a stripped release binary is **558 KiB**,
 well under the size of `hyprlock` and several times smaller than
 `waylock` while shipping more hardening than either. See
 [compare.md](compare.md) for the full security and size comparison
@@ -168,11 +168,11 @@ This opens the Matrix rain in a normal Wayland window and does not lock the
 session or start PAM.
 
 Matrix rain is rendered through a Sokol/EGL/GLES path when available. The glyph
-atlas is generated from lockme's built-in Koine Greek high-resolution alpha
-glyph source; if GPU setup fails, lockme warns and falls back to the existing
-software renderer. The GPU rain pipeline adapts MIT-licensed shader logic from
-Rezmason's Matrix rain renderer. While locked, `Alt-B` toggles between Matrix
-rain and a blank screen.
+atlas is generated from lockme's built-in high-resolution alpha glyph source,
+which is rasterized from the CNTR Koine Greek TrueType font; if GPU setup fails,
+lockme warns and falls back to the existing software renderer. The GPU rain
+pipeline adapts MIT-licensed shader logic from Rezmason's Matrix rain renderer.
+While locked, `Alt-B` toggles between Matrix rain and a blank screen.
 
 Typing rotates the surface through a configurable input palette, and failed
 authentication shows a solid failure color. The `--init-color`, `--input-color`
@@ -214,12 +214,18 @@ are accepted in the config file (the CLI requires the `0x` form).
 Legacy Matrix font keys from older templates are accepted as no-ops; Matrix
 glyphs now always come from the built-in Koine Greek glyph source.
 
+The built-in Matrix glyph alpha data is generated from the vendored CNTR
+`KoineGreek.ttf` font in `third_party/cntr-font`, copyright 2012-2023 Alan
+Bunning / Center for New Testament Restoration and distributed under CC BY-SA
+4.0. Run `nimble regenFont` after changing the vendored font or glyph list; the
+generator uses Python with Pillow and fontTools.
+
 ## Build size
 
 The release build uses size-oriented flags (`--opt:size --mm:orc
 -d:useMalloc -flto -Wl,--gc-sections -Wl,-s`) so that the KDL parser
 and its transitive dependencies (`bigints`, `unicodedb`) do not bloat
-the binary. The current stripped output is 446 KiB (456,120 bytes).
+the binary. The current stripped output is 558 KiB (570,808 bytes).
 Run `nimble sizecheck` to print the size of your build.
 
 ## Platform requirements

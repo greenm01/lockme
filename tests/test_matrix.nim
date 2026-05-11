@@ -1,6 +1,6 @@
 import std/unittest
 
-import lockme/[font8x16, font64x128, matrix, matrix_render]
+import lockme/[font64x128, matrix, matrix_render]
 
 proc glyphCell(atlas: MatrixGlyphAtlas; glyphIdx: int): seq[uint8] =
   result = newSeq[uint8](atlas.cellWidth * atlas.cellHeight)
@@ -49,23 +49,27 @@ proc distinctVisibleGlyphCount(rain: MatrixRain): int =
 
 suite "matrix":
   test "glyph sources match matrix glyph set":
-    check Font8x16.len == MatrixGlyphs.len
+    check KoineGlyphCount == MatrixGlyphs.len
     check KoineFont64x128.len == MatrixGlyphs.len
     check HighResGlyphWidth == 64
     check HighResGlyphHeight == 128
     check KoineFont64x128[0].len == HighResGlyphWidth * HighResGlyphHeight
 
-  test "high-resolution glyph source contains coverage alpha":
+  test "high-resolution glyph source contains visible coverage alpha":
     var intermediate = false
-    var opaque = false
+    var strong = false
     for glyph in KoineFont64x128:
+      var visible = false
       for pixel in glyph:
+        if pixel > 0'u8:
+          visible = true
         if pixel > 0'u8 and pixel < 255'u8:
           intermediate = true
-        if pixel == 255'u8:
-          opaque = true
+        if pixel > 200'u8:
+          strong = true
+      check visible
     check intermediate
-    check opaque
+    check strong
 
   test "glyph atlas uses matrix glyph set":
     let renderer = initMatrixRenderer(2.0)
