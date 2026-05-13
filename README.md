@@ -150,8 +150,32 @@ lockme
 ```
 
 Plain `lockme` shows Matrix rain while idle and ignores the Enter key on an
-empty password buffer. Pass `--blank` to start on a blank screen, or
-`--allow-empty-password` if you need empty submissions to reach PAM.
+empty password buffer.
+
+### Battery / power
+
+**If you use a laptop, set `--idle-timeout`.** A continuously rendering GPU
+screensaver prevents deep sleep and drains the battery noticeably on an
+unattended locked machine. Setting an idle timeout blanks the screen after the
+specified number of seconds, letting the system reach low-power states:
+
+```sh
+lockme --idle-timeout 60   # blank after 60 s of inactivity
+```
+
+The next keypress wakes the screen back to matrix. You can also set this in
+`~/.config/lockme/config.kdl` so you never forget it:
+
+```kdl
+idle-timeout 60
+```
+
+### Other common flags
+
+`--blank` starts on a blank screen instead of matrix rain.
+`--allow-empty-password` allows an empty Enter press to reach PAM.
+`--no-gpu` forces the CPU renderer and removes EGL from the process (also
+useful on systems with unreliable GPU drivers).
 
 For development only, `lockme --dev-mode` makes `Esc` unlock and exit cleanly
 without talking to PAM. This is intentionally insecure and should not be used
@@ -209,7 +233,10 @@ diagnostic on stderr.
 
 A documented template lives at `examples/config.kdl` and is dropped into
 `~/.config/lockme/config.kdl` by `nimble installBin`/`nimble deploy` only if
-that file does not already exist. Both `0xRRGGBB` and `#RRGGBB` color forms
+that file does not already exist. Keys absent from the config always take the
+built-in default, so an existing config never breaks when new options are
+added; diff your file against `examples/config.kdl` after pulling updates to
+see what is new. Both `0xRRGGBB` and `#RRGGBB` color forms
 are accepted in the config file (the CLI requires the `0x` form).
 Legacy Matrix font keys from older templates are accepted as no-ops; Matrix
 glyphs now always come from the built-in Koine Greek glyph source.

@@ -166,6 +166,23 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
       raise newException(ValueError, "blank requires a boolean value")
     opts.blank = n.args[0].kBool()
 
+  let noGpuNode = doc.findNode("no-gpu")
+  if noGpuNode.isSome and cfNoGpu notin opts.setFlags:
+    let n = noGpuNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "no-gpu requires a boolean value")
+    opts.noGpu = n.args[0].kBool()
+
+  let idleTimeoutNode = doc.findNode("idle-timeout")
+  if idleTimeoutNode.isSome and cfIdleTimeout notin opts.setFlags:
+    let n = idleTimeoutNode.get
+    if n.args.len < 1:
+      raise newException(ValueError, "idle-timeout requires an integer value")
+    let secs = n.args[0].kInt()
+    if secs < 0:
+      raise newException(ValueError, "idle-timeout must be >= 0")
+    opts.idleTimeoutSecs = int(secs)
+
   let matrixFrameNode = doc.findNode("matrix-frame-ms")
   if matrixFrameNode.isSome:
     let n = matrixFrameNode.get

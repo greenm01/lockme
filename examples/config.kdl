@@ -30,6 +30,14 @@ ignore-empty-password #true
 // Start with a blank screen instead of Matrix rain.
 blank #false
 
+// Disable GPU rendering and use the CPU renderer instead.
+// Reduces EGL/driver attack surface; useful on hardened setups.
+no-gpu #false
+
+// Blank the screen after this many seconds of inactivity (0 = disabled).
+// The screen wakes back to matrix on the next keypress.
+idle-timeout 0
+
 // Matrix rain frame interval in milliseconds (higher is slower).
 matrix-frame-ms 40
 

@@ -28,6 +28,8 @@ type
     cfConfigPath
     cfNoConfig
     cfBlank
+    cfNoGpu
+    cfIdleTimeout
     cfDevWindow
 
   Options* = object
@@ -46,6 +48,8 @@ type
     configPath*: Option[string]
     noConfig*: bool
     blank*: bool
+    noGpu*: bool
+    idleTimeoutSecs*: int
     devWindow*: bool
     matrixFrameMs*: int
     matrixCellScale*: float
@@ -71,6 +75,9 @@ const Usage* = """usage: lockme [options]
                                    normal Wayland window.
   --check-protocols                Check required Wayland globals without locking.
   --blank                          Start with a blank screen instead of Matrix.
+  --no-gpu                         Use the CPU renderer instead of GPU/EGL.
+  --idle-timeout <seconds>         Blank the screen after this many seconds of
+                                   inactivity. 0 disables (default: 0).
 
   --config <path>                  Load configuration from <path>.
   --no-config                      Do not load any configuration file.
@@ -156,6 +163,17 @@ proc parseOptions*(args: seq[string]): Options =
     of "--blank":
       result.blank = true
       result.setFlags.incl cfBlank
+    of "--no-gpu":
+      result.noGpu = true
+      result.setFlags.incl cfNoGpu
+    of "--idle-timeout":
+      let raw = needValue(args, i, arg)
+      let secs = parseInt(raw)
+      if secs < 0:
+        raise newException(ValueError, "invalid --idle-timeout value '" & raw & "'")
+      result.idleTimeoutSecs = secs
+      result.setFlags.incl cfIdleTimeout
+      inc i
     of "--no-config":
       result.noConfig = true
       result.setFlags.incl cfNoConfig

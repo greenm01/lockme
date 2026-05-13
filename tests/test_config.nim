@@ -206,3 +206,35 @@ matrix-line-height 4
     var opts = parseOptions(@["--no-config"])
     opts.loadConfig()  # must not raise even if no file exists
     check opts.initColor == 0x000000'u32
+
+  test "no-gpu config enables CPU-only renderer":
+    let path = getTempDir() / "lockme_test_no_gpu.kdl"
+    writeFile(path, "no-gpu #true\n")
+    defer: removeFile(path)
+    var opts = defaultOptions()
+    opts.applyConfigFile(path)
+    check opts.noGpu == true
+
+  test "CLI --no-gpu wins over config no-gpu false":
+    let path = getTempDir() / "lockme_test_no_gpu_override.kdl"
+    writeFile(path, "no-gpu #false\n")
+    defer: removeFile(path)
+    var opts = parseOptions(@["--no-gpu"])
+    opts.applyConfigFile(path)
+    check opts.noGpu == true
+
+  test "idle-timeout config sets seconds":
+    let path = getTempDir() / "lockme_test_idle_timeout.kdl"
+    writeFile(path, "idle-timeout 120\n")
+    defer: removeFile(path)
+    var opts = defaultOptions()
+    opts.applyConfigFile(path)
+    check opts.idleTimeoutSecs == 120
+
+  test "idle-timeout config rejects negative":
+    let path = getTempDir() / "lockme_test_idle_timeout_bad.kdl"
+    writeFile(path, "idle-timeout -5\n")
+    defer: removeFile(path)
+    var opts = defaultOptions()
+    expect ValueError:
+      opts.applyConfigFile(path)

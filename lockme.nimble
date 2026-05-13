@@ -18,7 +18,18 @@ const buildCommand =
   "--out:lockme src/lockme.nim"
 
 const configTemplate = "examples/config.kdl"
-const userConfigDest = "$HOME/.config/lockme/config.kdl"
+
+import std/os
+
+proc installConfigStep() =
+  let dest = getHomeDir() / ".config" / "lockme" / "config.kdl"
+  if fileExists(dest):
+    echo "lockme: existing config kept: " & dest
+    echo "lockme: diff your config against examples/config.kdl for any new options:"
+    echo "lockme:   diff \"" & dest & "\" examples/config.kdl"
+  else:
+    exec "install -Dm644 " & configTemplate & " \"" & dest & "\""
+    echo "lockme: default config installed to: " & dest
 
 task build, "Build lockme":
   exec buildCommand
@@ -26,9 +37,7 @@ task build, "Build lockme":
 task installBin, "Install the lockme binary to ~/.local/bin (builds if needed)":
   exec buildCommand
   exec "install -Dm755 lockme ~/.local/bin/lockme"
-  # Only drop the example config if the user has none yet.
-  exec "sh -c 'test -f " & userConfigDest & " || install -Dm644 " &
-    configTemplate & " " & userConfigDest & "'"
+  installConfigStep()
 
 task installPam, "Install the default PAM file (minimal: pam_faildelay + pam_unix; no faillock/homed/keyring/fingerprint/smartcard)":
   exec "sudo install -m0644 pam.d/lockme /etc/pam.d/lockme"
@@ -39,8 +48,7 @@ task installPamFull, "Install the full PAM file (auth include system-auth; enabl
 task deploy, "Build release, install binary, drop default config (if absent), and install minimal PAM config":
   exec buildCommand
   exec "install -Dm755 lockme ~/.local/bin/lockme"
-  exec "sh -c 'test -f " & userConfigDest & " || install -Dm644 " &
-    configTemplate & " " & userConfigDest & "'"
+  installConfigStep()
   exec "sudo install -m0644 pam.d/lockme /etc/pam.d/lockme"
 
 task test, "Run unit tests":

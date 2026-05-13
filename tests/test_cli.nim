@@ -110,3 +110,30 @@ suite "cli":
   test "setFlags empty when no overrides":
     let opts = parseOptions(@[])
     check opts.setFlags == {}
+
+  test "--no-gpu enables CPU-only renderer":
+    let opts = parseOptions(@["--no-gpu"])
+    check opts.noGpu
+    check cfNoGpu in opts.setFlags
+
+  test "noGpu defaults to false":
+    let opts = parseOptions(@[])
+    check not opts.noGpu
+
+  test "--idle-timeout sets seconds":
+    let opts = parseOptions(@["--idle-timeout", "30"])
+    check opts.idleTimeoutSecs == 30
+    check cfIdleTimeout in opts.setFlags
+
+  test "--idle-timeout zero disables":
+    let opts = parseOptions(@["--idle-timeout", "0"])
+    check opts.idleTimeoutSecs == 0
+    check cfIdleTimeout in opts.setFlags
+
+  test "--idle-timeout rejects negative":
+    expect ValueError:
+      discard parseOptions(@["--idle-timeout", "-1"])
+
+  test "idleTimeoutSecs defaults to zero":
+    let opts = parseOptions(@[])
+    check opts.idleTimeoutSecs == 0

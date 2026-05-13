@@ -170,6 +170,8 @@ type
     matrixTicker: MatrixTicker
     failReturnPending: bool
     failReturnAt: MonoTime
+    lastInputAt: MonoTime
+    idleBlanked: bool
 
   Lock = ref LockObj
 
@@ -370,7 +372,7 @@ proc destroyMatrixBuffers(output: Output) =
 
 proc createMatrixGpu(output: Output): bool =
   let lock = output.lock
-  if lock.blankActive or not output.matrixSurfaceRenderable():
+  if lock.opts.noGpu or lock.blankActive or not output.matrixSurfaceRenderable():
     return false
   if not lock.ensureMatrixRenderer():
     output.logMatrixFailure("failed to initialize matrix renderer")
@@ -583,6 +585,15 @@ proc toggleBlank(lock: Lock) =
   lock.presentAll()
 
 proc failReturnTimeout(now, deadline: MonoTime): cint =
+  if deadline <= now:
+    return 0.cint
+  let ms = (deadline - now).inMilliseconds
+  if ms > int64(high(cint)): high(cint) else: cint(ms)
+
+proc idleBlankTimeout(opts: Options; lastInputAt, now: MonoTime): cint =
+  if opts.idleTimeoutSecs <= 0:
+    return -1.cint
+  let deadline = lastInputAt + initDuration(seconds = opts.idleTimeoutSecs)
   if deadline <= now:
     return 0.cint
   let ms = (deadline - now).inMilliseconds
@@ -855,6 +866,12 @@ proc keyboardKey(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, sta
   if lock.state == lsExiting or seat.xkbState.isNil:
     return
 
+  lock.lastInputAt = getMonoTime()
+  if lock.idleBlanked:
+    lock.idleBlanked = false
+    lock.toggleBlank()
+    return
+
   let keycode = key + 8
   let sym = xkb_state_key_get_one_sym(seat.xkbState, keycode)
   if (sym == XkbKeyB or sym == XkbKeyLowerB) and seat.xkbState.isModifierActive("Mod1"):
@@ -1056,6 +1073,7 @@ proc connectAndDiscover(opts: Options): Lock =
     blankActive: opts.blank
   )
   result.matrixClockStart = getMonoTime()
+  result.lastInputAt = result.matrixClockStart
   if not result.blankActive:
     discard result.ensureMatrixRenderer()
   result.display = wl_display_connect(nil)
@@ -1153,6 +1171,9 @@ proc runLock*(opts: Options) =
     if lock.failReturnPending:
       let failTimeout = failReturnTimeout(pollStart, lock.failReturnAt)
       timeout = combinePollTimeout(timeout, failTimeout)
+    if not lock.blankActive and lock.opts.idleTimeoutSecs > 0:
+      let idleTimeout = idleBlankTimeout(lock.opts, lock.lastInputAt, pollStart)
+      timeout = combinePollTimeout(timeout, idleTimeout)
 
     let pollRc = poll(addr pollfds[0], Tnfds(pollLen), timeout)
     if pollRc < 0:
@@ -1198,6 +1219,12 @@ proc runLock*(opts: Options) =
         lock.failReturnPending = false
         if lock.color.kind == ckFail and lock.password.len == 0:
           lock.setColor(initState())
+
+    if lock.opts.idleTimeoutSecs > 0 and not lock.blankActive:
+      let now = getMonoTime()
+      if idleBlankTimeout(lock.opts, lock.lastInputAt, now) == 0:
+        lock.idleBlanked = true
+        lock.toggleBlank()
 
     let matrixFrameNow = getMonoTime()
     if matrixFrameDue(

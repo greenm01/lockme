@@ -70,6 +70,35 @@ following mitigations as present:
 - Config loading does not execute shells or run in a privileged context.
 - `--fork-on-lock` parent exit happens before password input is collected.
 
+## GPU Rendering Risks and Mitigations
+
+The GPU matrix renderer introduces risks that the CPU-only path avoids. Users
+who want to reduce the attack surface can pass `--no-gpu` or set `no-gpu true`
+in the config file, which forces the CPU renderer without requiring a separate
+blank-only invocation.
+
+**Compositor trust dependency.** `ext-session-lock-v1` guarantees that if
+`lockme` exits without calling `unlock_and_destroy`, the compositor keeps the
+screen blacked out. The locker's lock integrity in the crash case therefore
+depends on the compositor implementing this guarantee correctly. A SIGSEGV in
+the C shim (EGL, Sokol, or the GPU driver) would kill the whole process, and
+the compositor — not the locker — would be responsible for maintaining the
+locked state. Niri implements this correctly; compositors that do not are not
+supported. The `--no-gpu` flag eliminates the largest FFI crash surface for
+users who want to remove this dependency.
+
+**GPU VRAM residue.** Intermediate render-to-texture targets (raindrop and
+symbol ping-pong buffers) use `SG_LOADACTION_CLEAR` on first use, so they are
+zeroed at the Sokol level. GPU drivers are required to zero-initialize memory
+across security context boundaries, but driver bugs in this area are a
+documented vulnerability class. This risk is not specific to `lockme` and
+affects all EGL-using compositing clients.
+
+**EGL/driver attack surface.** The GPU renderer introduces EGL and the Mesa
+driver stack as additional code in the process. `lockme` does not run
+privileged, so the worst case from a driver bug is a process crash (handled
+by the compositor, per the dependency above) rather than privilege escalation.
+
 ## Codex Review Notes
 
 The current design keeps the strongest guarantees around the actual password
