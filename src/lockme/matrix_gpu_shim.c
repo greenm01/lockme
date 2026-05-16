@@ -208,6 +208,22 @@ static void set_error(const char *message) {
 	snprintf(g_last_error, sizeof(g_last_error), "%s", message);
 }
 
+static int32_t forced_render_fail_after(void) {
+	const char *raw = getenv("LOCKME_MATRIX_GPU_FAIL_AFTER");
+	if (!raw || raw[0] == '\0') {
+		return -1;
+	}
+	char *end = NULL;
+	long value = strtol(raw, &end, 10);
+	if (end == raw || *end != '\0' || value < 0) {
+		return -1;
+	}
+	if (value > INT32_MAX) {
+		return INT32_MAX;
+	}
+	return (int32_t)value;
+}
+
 static void sokol_logger(const char *tag, uint32_t level, uint32_t item, const char *message, uint32_t line, const char *filename, void *user_data) {
 	(void)tag;
 	(void)level;
@@ -754,6 +770,11 @@ int32_t lockme_matrix_gpu_render(
 		return 0;
 	}
 	if (!make_current(gpu)) {
+		return 0;
+	}
+	int32_t fail_after = forced_render_fail_after();
+	if (fail_after >= 0 && gpu->frame_count >= (uint32_t)fail_after) {
+		set_error("forced matrix gpu render failure");
 		return 0;
 	}
 	if (!ensure_state(gpu)) {

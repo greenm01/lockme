@@ -328,7 +328,7 @@ proc nextInputState(lock: Lock): ColorState =
 proc wantsMatrix(lock: Lock): bool =
   not lock.blankActive and lock.color.kind == ckInit and lock.password.len == 0
 
-proc destroyMatrixBuffers(output: Output)
+proc destroyMatrixBuffers(output: Output; resetGpuUnavailable = true)
 
 proc sameMatrixScale(a, b: float): bool =
   abs(a - b) < 0.001
@@ -357,7 +357,7 @@ proc ensureMatrixRenderer(lock: Lock): bool =
   lock.matrixAtlas = buildMatrixGlyphAtlas(lock.matrixRenderer)
   true
 
-proc destroyMatrixBuffers(output: Output) =
+proc destroyMatrixBuffers(output: Output; resetGpuUnavailable = true) =
   if not output.matrixGpu.isNil:
     output.matrixGpu.close()
     output.matrixGpu = nil
@@ -368,7 +368,8 @@ proc destroyMatrixBuffers(output: Output) =
       wlBufferDestroy(buf.buffer)
     buf = MatrixBuffer()
   output.matrixNextBuffer = 0
-  output.matrixGpuUnavailable = false
+  if resetGpuUnavailable:
+    output.matrixGpuUnavailable = false
 
 proc createMatrixGpu(output: Output): bool =
   let lock = output.lock
@@ -398,16 +399,16 @@ proc createMatrixGpu(output: Output): bool =
     return false
   true
 
-proc createMatrixShmBuffers(output: Output) =
+proc createMatrixShmBuffers(output: Output; allowGpu = true) =
   let lock = output.lock
-  output.destroyMatrixBuffers()
+  output.destroyMatrixBuffers(resetGpuUnavailable = allowGpu)
   if lock.blankActive or not output.matrixSurfaceRenderable():
     return
   if not lock.ensureMatrixRenderer():
     output.logMatrixFailure("failed to initialize matrix renderer")
     return
 
-  if output.createMatrixGpu():
+  if allowGpu and output.createMatrixGpu():
     return
 
   if lock.shm.isNil:
@@ -526,13 +527,21 @@ proc attachMatrixFrame(output: Output): bool =
     output.createMatrixShmBuffers()
   if not output.matrixGpu.isNil:
     viewportSetDestination(output.viewport, output.width, output.height)
-    return output.matrixGpu.render(
+    if output.matrixGpu.render(
       output.lock.matrixNowMs(getMonoTime()),
       output.lock.opts.matrixFallSpeed,
       output.lock.opts.matrixCycleSpeed,
       output.lock.opts.matrixRaindropLength,
       output.lock.opts.matrixBrightnessDecay
-    )
+    ):
+      return true
+    output.logMatrixFailure("GPU renderer failed during render; using CPU renderer fallback: " & matrixGpuLastError())
+    output.matrixGpu.close()
+    output.matrixGpu = nil
+    output.matrixGpuUnavailable = true
+    output.createMatrixShmBuffers(allowGpu = false)
+    if not output.hasMatrixBuffers():
+      return false
   if not output.hasMatrixBuffers():
     return false
   for offset in 0 ..< output.matrixBuffers.len:

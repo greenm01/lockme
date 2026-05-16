@@ -160,7 +160,7 @@ proc destroyBuffer(buf: var PreviewBuffer) =
     wlBufferDestroy(buf.buffer)
   buf = PreviewBuffer()
 
-proc destroyBuffers(preview: Preview) =
+proc destroyBuffers(preview: Preview; resetGpuUnavailable = true) =
   if not preview.gpu.isNil:
     preview.gpu.close()
     preview.gpu = nil
@@ -168,7 +168,8 @@ proc destroyBuffers(preview: Preview) =
     buf.destroyBuffer()
   preview.blankBuffer.destroyBuffer()
   preview.nextBuffer = 0
-  preview.gpuUnavailable = false
+  if resetGpuUnavailable:
+    preview.gpuUnavailable = false
 
 proc sameMatrixScale(a, b: float): bool =
   abs(a - b) < 0.001
@@ -215,7 +216,7 @@ proc createGpu(preview: Preview): bool =
     return false
   true
 
-proc createBuffers(preview: Preview): bool =
+proc createBuffers(preview: Preview; allowGpu = true): bool =
   if preview.width <= 0 or preview.height <= 0:
     return false
   if not preview.ensureRenderer():
@@ -224,7 +225,7 @@ proc createBuffers(preview: Preview): bool =
 
   let width = int(preview.width)
   let height = int(preview.height)
-  if preview.createGpu():
+  if allowGpu and preview.createGpu():
     return true
   if preview.shm.isNil:
     stderr.writeLine("lockme: warning: wl_shm unavailable for preview CPU fallback")
@@ -232,7 +233,7 @@ proc createBuffers(preview: Preview): bool =
   if preview.buffers[0].buffer != nil and preview.buffers[0].width == width and preview.buffers[0].height == height:
     return true
 
-  preview.destroyBuffers()
+  preview.destroyBuffers(resetGpuUnavailable = allowGpu)
 
   let geometry = matrixRenderGeometry(width, height, preview.renderer)
   if geometry.cols <= 0 or geometry.rows <= 0:
@@ -381,13 +382,20 @@ proc presentFrame(preview: Preview): bool =
 
   if not preview.gpu.isNil:
     xdgSurfaceSetWindowGeometry(preview.xdgSurface, 0, 0, preview.width, preview.height)
-    return preview.gpu.render(
+    if preview.gpu.render(
       preview.matrixNowMs(getMonoTime()),
       preview.opts.matrixFallSpeed,
       preview.opts.matrixCycleSpeed,
       preview.opts.matrixRaindropLength,
       preview.opts.matrixBrightnessDecay
-    )
+    ):
+      return true
+    stderr.writeLine("lockme: warning: preview GPU renderer failed during render; using CPU renderer fallback: " & matrixGpuLastError())
+    preview.gpu.close()
+    preview.gpu = nil
+    preview.gpuUnavailable = true
+    if not preview.createBuffers(allowGpu = false):
+      return false
 
   for offset in 0 ..< preview.buffers.len:
     let idx = (preview.nextBuffer + offset) mod preview.buffers.len
