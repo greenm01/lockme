@@ -11,7 +11,10 @@ const MatrixBrightnessDecayDefault* = 1.0
 
 type
   LogLevel* = enum
-    llError, llWarning, llInfo, llDebug
+    llError
+    llWarning
+    llInfo
+    llDebug
 
   CliFlag* = enum
     ## Which option fields were explicitly set on the CLI. Used to merge
@@ -96,37 +99,42 @@ proc defaultOptions*(): Options =
   Options(
     readyFd: -1,
     ignoreEmptyPassword: true,
-    initColor: 0x000000'u32,                                # pure black
-    inputColors: @[0x4B0082'u32, 0x003366'u32, 0x006400'u32], # Father (Tyrian indigo/violet), Son (royal blue), Spirit (life green)
-    failColor: 0x8B0000'u32,                                # deep crimson
+    initColor: 0x000000'u32, # pure black
+    inputColors: @[0x4B0082'u32, 0x003366'u32, 0x006400'u32],
+      # Father (Tyrian indigo/violet), Son (royal blue), Spirit (life green)
+    failColor: 0x8B0000'u32, # deep crimson
     logLevel: llError,
     matrixFrameMs: MatrixFrameMsDefault,
     matrixCellScale: MatrixCellScaleDefault,
     matrixFallSpeed: MatrixFallSpeedDefault,
     matrixCycleSpeed: MatrixCycleSpeedDefault,
     matrixRaindropLength: MatrixRaindropLengthDefault,
-    matrixBrightnessDecay: MatrixBrightnessDecayDefault
+    matrixBrightnessDecay: MatrixBrightnessDecayDefault,
   )
 
 proc parseColor*(raw: string): uint32 =
   ## Parses a `0xRRGGBB` color literal as used on the CLI.
-  if raw.len != 8 or raw[0..1] != "0x":
+  if raw.len != 8 or raw[0 .. 1] != "0x":
     raise newException(ValueError, "invalid color '" & raw & "', expected 0xRRGGBB")
   var value: int
-  if parseHex(raw[2..^1], value) != 6:
+  if parseHex(raw[2 ..^ 1], value) != 6:
     raise newException(ValueError, "invalid color '" & raw & "', expected 0xRRGGBB")
   result = uint32(value)
 
 proc parseLogLevel*(raw: string): LogLevel =
   case raw
-  of "error": llError
-  of "warning": llWarning
-  of "info": llInfo
-  of "debug": llDebug
+  of "error":
+    llError
+  of "warning":
+    llWarning
+  of "info":
+    llInfo
+  of "debug":
+    llDebug
   else:
     raise newException(ValueError, "invalid log level '" & raw & "'")
 
-proc needValue(args: seq[string]; i: int; opt: string): string =
+proc needValue(args: seq[string], i: int, opt: string): string =
   if i + 1 >= args.len:
     raise newException(ValueError, "missing value for " & opt)
   args[i + 1]

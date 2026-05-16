@@ -29,22 +29,27 @@ proc parseColorString*(raw: string): uint32 =
   ## Accepts both ``0xRRGGBB`` and ``#RRGGBB`` hex literals.
   ## Raises ``ValueError`` for anything else.
   var hex: string
-  if raw.len == 8 and raw[0..1] == "0x":
-    hex = raw[2..^1]
+  if raw.len == 8 and raw[0 .. 1] == "0x":
+    hex = raw[2 ..^ 1]
   elif raw.len == 7 and raw[0] == '#':
-    hex = raw[1..^1]
+    hex = raw[1 ..^ 1]
   else:
-    raise newException(ValueError,
-      "invalid color '" & raw & "', expected 0xRRGGBB or #RRGGBB")
+    raise newException(
+      ValueError, "invalid color '" & raw & "', expected 0xRRGGBB or #RRGGBB"
+    )
   var value: int
   if parseHex(hex, value) != 6:
-    raise newException(ValueError,
-      "invalid color '" & raw & "', expected 0xRRGGBB or #RRGGBB")
+    raise newException(
+      ValueError, "invalid color '" & raw & "', expected 0xRRGGBB or #RRGGBB"
+    )
   uint32(value)
 
 proc xdgConfigHome(): string =
   let env = getEnv("XDG_CONFIG_HOME")
-  if env.len > 0: env else: getEnv("HOME") / ".config"
+  if env.len > 0:
+    env
+  else:
+    getEnv("HOME") / ".config"
 
 proc xdgConfigDirs(): seq[string] =
   let env = getEnv("XDG_CONFIG_DIRS")
@@ -66,14 +71,18 @@ proc findConfigFile*(): Option[string] =
 
 proc parseLogLevelStrict(raw: string): LogLevel =
   case raw
-  of "error": llError
-  of "warning": llWarning
-  of "info": llInfo
-  of "debug": llDebug
+  of "error":
+    llError
+  of "warning":
+    llWarning
+  of "info":
+    llInfo
+  of "debug":
+    llDebug
   else:
     raise newException(ValueError, "invalid log-level '" & raw & "'")
 
-proc parseNumberArg(value: KdlVal; name: string): float =
+proc parseNumberArg(value: KdlVal, name: string): float =
   try:
     return value.kFloat()
   except CatchableError:
@@ -93,18 +102,21 @@ proc parseMatrixCellScale(value: KdlVal): float =
   if isString:
     if raw == "auto":
       return MatrixCellScaleAuto
-    raise newException(ValueError,
-      "matrix-cell-scale requires \"auto\" or a number value")
+    raise
+      newException(ValueError, "matrix-cell-scale requires \"auto\" or a number value")
 
   let scale = parseNumberArg(value, "matrix-cell-scale")
   if scale == MatrixCellScaleAuto:
     return MatrixCellScaleAuto
   if scale < MatrixCellScaleMin or scale > MatrixCellScaleMax:
-    raise newException(ValueError, "matrix-cell-scale must be \"auto\", 0, or between " &
-      $MatrixCellScaleMin & " and " & $MatrixCellScaleMax)
+    raise newException(
+      ValueError,
+      "matrix-cell-scale must be \"auto\", 0, or between " & $MatrixCellScaleMin &
+        " and " & $MatrixCellScaleMax,
+    )
   scale
 
-proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
+proc applyConfigDoc*(opts: var Options, doc: KdlDoc) =
   ## Applies values from ``doc`` to ``opts`` only for fields that the CLI
   ## did not explicitly set (per ``opts.setFlags``).
   let initNode = doc.findNode("init-color")
@@ -126,8 +138,10 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
     var palette: seq[uint32]
     for child in inputsNode.get.children:
       if child.name != "color":
-        raise newException(ValueError,
-          "unknown node '" & child.name & "' under inputs (expected 'color')")
+        raise newException(
+          ValueError,
+          "unknown node '" & child.name & "' under inputs (expected 'color')",
+        )
       if child.args.len < 1:
         raise newException(ValueError, "inputs.color requires a value")
       palette.add parseColorString(child.args[0].kString())
@@ -190,16 +204,20 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
       raise newException(ValueError, "matrix-frame-ms requires an integer value")
     let value = n.args[0].kInt()
     if value < MatrixFrameMsMin or value > MatrixFrameMsMax:
-      raise newException(ValueError, "matrix-frame-ms must be between " &
-        $MatrixFrameMsMin & " and " & $MatrixFrameMsMax)
+      raise newException(
+        ValueError,
+        "matrix-frame-ms must be between " & $MatrixFrameMsMin & " and " &
+          $MatrixFrameMsMax,
+      )
     opts.matrixFrameMs = int(value)
 
   let matrixCellScaleNode = doc.findNode("matrix-cell-scale")
   if matrixCellScaleNode.isSome:
     let n = matrixCellScaleNode.get
     if n.args.len < 1:
-      raise newException(ValueError,
-        "matrix-cell-scale requires \"auto\" or a number value")
+      raise newException(
+        ValueError, "matrix-cell-scale requires \"auto\" or a number value"
+      )
     opts.matrixCellScale = parseMatrixCellScale(n.args[0])
 
   # Older generated configs may contain matrix-font-* keys. Matrix glyphs are
@@ -212,8 +230,11 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
       raise newException(ValueError, "matrix-fall-speed requires a number value")
     let value = parseNumberArg(n.args[0], "matrix-fall-speed")
     if value < MatrixFallSpeedMin or value > MatrixFallSpeedMax:
-      raise newException(ValueError, "matrix-fall-speed must be between " &
-        $MatrixFallSpeedMin & " and " & $MatrixFallSpeedMax)
+      raise newException(
+        ValueError,
+        "matrix-fall-speed must be between " & $MatrixFallSpeedMin & " and " &
+          $MatrixFallSpeedMax,
+      )
     opts.matrixFallSpeed = value
 
   let matrixCycleSpeedNode = doc.findNode("matrix-cycle-speed")
@@ -223,8 +244,11 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
       raise newException(ValueError, "matrix-cycle-speed requires a number value")
     let value = parseNumberArg(n.args[0], "matrix-cycle-speed")
     if value < MatrixCycleSpeedMin or value > MatrixCycleSpeedMax:
-      raise newException(ValueError, "matrix-cycle-speed must be between " &
-        $MatrixCycleSpeedMin & " and " & $MatrixCycleSpeedMax)
+      raise newException(
+        ValueError,
+        "matrix-cycle-speed must be between " & $MatrixCycleSpeedMin & " and " &
+          $MatrixCycleSpeedMax,
+      )
     opts.matrixCycleSpeed = value
 
   let matrixRaindropLengthNode = doc.findNode("matrix-raindrop-length")
@@ -234,8 +258,11 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
       raise newException(ValueError, "matrix-raindrop-length requires a number value")
     let value = parseNumberArg(n.args[0], "matrix-raindrop-length")
     if value < MatrixRaindropLengthMin or value > MatrixRaindropLengthMax:
-      raise newException(ValueError, "matrix-raindrop-length must be between " &
-        $MatrixRaindropLengthMin & " and " & $MatrixRaindropLengthMax)
+      raise newException(
+        ValueError,
+        "matrix-raindrop-length must be between " & $MatrixRaindropLengthMin & " and " &
+          $MatrixRaindropLengthMax,
+      )
     opts.matrixRaindropLength = value
 
   let matrixBrightnessDecayNode = doc.findNode("matrix-brightness-decay")
@@ -245,24 +272,25 @@ proc applyConfigDoc*(opts: var Options; doc: KdlDoc) =
       raise newException(ValueError, "matrix-brightness-decay requires a number value")
     let value = parseNumberArg(n.args[0], "matrix-brightness-decay")
     if value < MatrixBrightnessDecayMin or value > MatrixBrightnessDecayMax:
-      raise newException(ValueError, "matrix-brightness-decay must be between " &
-        $MatrixBrightnessDecayMin & " and " & $MatrixBrightnessDecayMax)
+      raise newException(
+        ValueError,
+        "matrix-brightness-decay must be between " & $MatrixBrightnessDecayMin & " and " &
+          $MatrixBrightnessDecayMax,
+      )
     opts.matrixBrightnessDecay = value
 
-proc applyConfigFile*(opts: var Options; path: string) =
+proc applyConfigFile*(opts: var Options, path: string) =
   ## Reads and applies a KDL config file. Raises ``ValueError`` with the
   ## file path included on parse/validation failures.
   var doc: KdlDoc
   try:
     doc = parseKdlFile(path)
   except CatchableError as e:
-    raise newException(ValueError,
-      "failed to parse config '" & path & "': " & e.msg)
+    raise newException(ValueError, "failed to parse config '" & path & "': " & e.msg)
   try:
     opts.applyConfigDoc(doc)
   except ValueError as e:
-    raise newException(ValueError,
-      "invalid config '" & path & "': " & e.msg)
+    raise newException(ValueError, "invalid config '" & path & "': " & e.msg)
 
 proc loadConfig*(opts: var Options) =
   ## Loads configuration following the documented precedence:

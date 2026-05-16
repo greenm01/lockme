@@ -20,7 +20,8 @@ suite "PasswordBuffer":
   test "rejects oversized append":
     var p = initPasswordBuffer()
     var big = newString(SizeMax + 1)
-    for i in 0 ..< big.len: big[i] = 'a'
+    for i in 0 ..< big.len:
+      big[i] = 'a'
     check not p.appendString(big)
     check p.len == 0
     p.destroy()
@@ -28,7 +29,8 @@ suite "PasswordBuffer":
   test "fills exactly to capacity":
     var p = initPasswordBuffer()
     var maxStr = newString(SizeMax)
-    for i in 0 ..< maxStr.len: maxStr[i] = 'x'
+    for i in 0 ..< maxStr.len:
+      maxStr[i] = 'x'
     check p.appendString(maxStr)
     check p.len == SizeMax
     check not p.appendString("y")

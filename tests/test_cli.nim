@@ -50,7 +50,12 @@ suite "cli":
     check cfInputColors in opts.setFlags
 
   test "repeated --input-color appends after replacing default":
-    let opts = parseOptions(@["--input-color", "0x111111", "--input-color", "0x222222", "--input-color", "0x333333"])
+    let opts = parseOptions(
+      @[
+        "--input-color", "0x111111", "--input-color", "0x222222", "--input-color",
+        "0x333333",
+      ]
+    )
     check opts.inputColors == @[0x111111'u32, 0x222222'u32, 0x333333'u32]
 
   test "reject bad color":

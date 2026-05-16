@@ -10,7 +10,10 @@ const
   PkgConfigCheck = gorgeEx("pkg-config --exists " & PkgConfigDeps)
 
 when PkgConfigCheck.exitCode != 0:
-  {.error: "missing system dependencies: install pkg-config plus development packages for wayland-client".}
+  {.
+    error:
+      "missing system dependencies: install pkg-config plus development packages for wayland-client"
+  .}
 
 {.passC: "-Isrc -Isrc/lockme " & gorge("pkg-config --cflags " & PkgConfigDeps).}
 {.compile: "protocols/xdg-shell-protocol.c".}
@@ -24,36 +27,86 @@ const
   WlShmFormatXrgb8888 = 1'u32
 
 type
-  WlDisplay {.importc: "struct wl_display", header: "<wayland-client.h>", incompleteStruct.} = object
-  WlRegistry {.importc: "struct wl_registry", header: "<wayland-client.h>", incompleteStruct.} = object
-  WlCompositor {.importc: "struct wl_compositor", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlSurface {.importc: "struct wl_surface", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlBuffer {.importc: "struct wl_buffer", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlShm {.importc: "struct wl_shm", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlShmPool {.importc: "struct wl_shm_pool", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
+  WlDisplay {.
+    importc: "struct wl_display", header: "<wayland-client.h>", incompleteStruct
+  .} = object
+
+  WlRegistry {.
+    importc: "struct wl_registry", header: "<wayland-client.h>", incompleteStruct
+  .} = object
+
+  WlCompositor {.
+    importc: "struct wl_compositor",
+    header: "<wayland-client-protocol.h>",
+    incompleteStruct
+  .} = object
+
+  WlSurface {.
+    importc: "struct wl_surface",
+    header: "<wayland-client-protocol.h>",
+    incompleteStruct
+  .} = object
+
+  WlBuffer {.
+    importc: "struct wl_buffer", header: "<wayland-client-protocol.h>", incompleteStruct
+  .} = object
+
+  WlShm {.
+    importc: "struct wl_shm", header: "<wayland-client-protocol.h>", incompleteStruct
+  .} = object
+
+  WlShmPool {.
+    importc: "struct wl_shm_pool",
+    header: "<wayland-client-protocol.h>",
+    incompleteStruct
+  .} = object
   WlArray {.importc: "struct wl_array", header: "<wayland-util.h>", incompleteStruct.} = object
-  XdgWmBase {.importc: "struct xdg_wm_base", header: "lockme/wayland_shim.h", incompleteStruct.} = object
-  XdgSurface {.importc: "struct xdg_surface", header: "lockme/wayland_shim.h", incompleteStruct.} = object
-  XdgToplevel {.importc: "struct xdg_toplevel", header: "lockme/wayland_shim.h", incompleteStruct.} = object
+
+  XdgWmBase {.
+    importc: "struct xdg_wm_base", header: "lockme/wayland_shim.h", incompleteStruct
+  .} = object
+
+  XdgSurface {.
+    importc: "struct xdg_surface", header: "lockme/wayland_shim.h", incompleteStruct
+  .} = object
+
+  XdgToplevel {.
+    importc: "struct xdg_toplevel", header: "lockme/wayland_shim.h", incompleteStruct
+  .} = object
 
   WlRegistryListener {.bycopy.} = object
-    global: proc(data: pointer; registry: ptr WlRegistry; name: uint32; iface: cstring; version: uint32) {.cdecl.}
-    globalRemove {.importc: "global_remove".}: proc(data: pointer; registry: ptr WlRegistry; name: uint32) {.cdecl.}
+    global: proc(
+      data: pointer,
+      registry: ptr WlRegistry,
+      name: uint32,
+      iface: cstring,
+      version: uint32,
+    ) {.cdecl.}
+    globalRemove {.importc: "global_remove".}:
+      proc(data: pointer, registry: ptr WlRegistry, name: uint32) {.cdecl.}
 
   WlBufferListener {.bycopy.} = object
-    release: proc(data: pointer; buffer: ptr WlBuffer) {.cdecl.}
+    release: proc(data: pointer, buffer: ptr WlBuffer) {.cdecl.}
 
   XdgWmBaseListener {.bycopy.} = object
-    ping: proc(data: pointer; wmBase: ptr XdgWmBase; serial: uint32) {.cdecl.}
+    ping: proc(data: pointer, wmBase: ptr XdgWmBase, serial: uint32) {.cdecl.}
 
   XdgSurfaceListener {.bycopy.} = object
-    configure: proc(data: pointer; surface: ptr XdgSurface; serial: uint32) {.cdecl.}
+    configure: proc(data: pointer, surface: ptr XdgSurface, serial: uint32) {.cdecl.}
 
   XdgToplevelListener {.bycopy.} = object
-    configure: proc(data: pointer; toplevel: ptr XdgToplevel; width, height: int32; states: ptr WlArray) {.cdecl.}
-    close: proc(data: pointer; toplevel: ptr XdgToplevel) {.cdecl.}
-    configureBounds {.importc: "configure_bounds".}: proc(data: pointer; toplevel: ptr XdgToplevel; width, height: int32) {.cdecl.}
-    wmCapabilities {.importc: "wm_capabilities".}: proc(data: pointer; toplevel: ptr XdgToplevel; capabilities: ptr WlArray) {.cdecl.}
+    configure: proc(
+      data: pointer,
+      toplevel: ptr XdgToplevel,
+      width, height: int32,
+      states: ptr WlArray,
+    ) {.cdecl.}
+    close: proc(data: pointer, toplevel: ptr XdgToplevel) {.cdecl.}
+    configureBounds {.importc: "configure_bounds".}:
+      proc(data: pointer, toplevel: ptr XdgToplevel, width, height: int32) {.cdecl.}
+    wmCapabilities {.importc: "wm_capabilities".}: proc(
+      data: pointer, toplevel: ptr XdgToplevel, capabilities: ptr WlArray
+    ) {.cdecl.}
 
   PreviewBuffer = object
     buffer: ptr WlBuffer
@@ -87,56 +140,197 @@ type
     clockStart: MonoTime
     ticker: MatrixTicker
 
-proc wl_display_connect(name: cstring): ptr WlDisplay {.importc, header: "<wayland-client.h>".}
-proc wl_display_disconnect(display: ptr WlDisplay) {.importc, header: "<wayland-client.h>".}
-proc wl_display_get_fd(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_display_get_registry(display: ptr WlDisplay): ptr WlRegistry {.importc, header: "<wayland-client-protocol.h>".}
-proc wl_display_roundtrip(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_display_dispatch_pending(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_display_prepare_read(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_display_cancel_read(display: ptr WlDisplay) {.importc, header: "<wayland-client.h>".}
-proc wl_display_read_events(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_display_flush(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_registry_destroy(registry: ptr WlRegistry) {.importc, header: "<wayland-client-protocol.h>".}
-proc wl_registry_add_listener(registry: ptr WlRegistry; listener: pointer; data: pointer): cint {.importc: "lockme_wl_registry_add_listener", header: "lockme/wayland_shim.h".}
-proc wl_buffer_add_listener(buffer: ptr WlBuffer; listener: pointer; data: pointer): cint {.importc: "lockme_wl_buffer_add_listener", header: "lockme/wayland_shim.h".}
+proc wl_display_connect(
+  name: cstring
+): ptr WlDisplay {.importc, header: "<wayland-client.h>".}
 
-proc ifaceNameWlCompositor(): cstring {.importc: "lockme_iface_name_wl_compositor", header: "lockme/wayland_shim.h".}
-proc ifaceNameWlShm(): cstring {.importc: "lockme_iface_name_wl_shm", header: "lockme/wayland_shim.h".}
-proc ifaceNameXdgWmBase(): cstring {.importc: "lockme_iface_name_xdg_wm_base", header: "lockme/wayland_shim.h".}
+proc wl_display_disconnect(
+  display: ptr WlDisplay
+) {.importc, header: "<wayland-client.h>".}
 
-proc bindWlCompositor(registry: ptr WlRegistry; name, version: uint32): ptr WlCompositor {.importc: "lockme_registry_bind_wl_compositor", header: "lockme/wayland_shim.h".}
-proc bindWlShm(registry: ptr WlRegistry; name, version: uint32): ptr WlShm {.importc: "lockme_registry_bind_wl_shm", header: "lockme/wayland_shim.h".}
-proc bindXdgWmBase(registry: ptr WlRegistry; name, version: uint32): ptr XdgWmBase {.importc: "lockme_registry_bind_xdg_wm_base", header: "lockme/wayland_shim.h".}
+proc wl_display_get_fd(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
 
-proc wlCreateSurface(compositor: ptr WlCompositor): ptr WlSurface {.importc: "lockme_wl_compositor_create_surface", header: "lockme/wayland_shim.h".}
-proc wlCompositorDestroy(compositor: ptr WlCompositor) {.importc: "lockme_wl_compositor_destroy", header: "lockme/wayland_shim.h".}
-proc wlSurfaceDestroy(surface: ptr WlSurface) {.importc: "lockme_wl_surface_destroy", header: "lockme/wayland_shim.h".}
-proc wlSurfaceAttach(surface: ptr WlSurface; buffer: ptr WlBuffer; x, y: int32) {.importc: "lockme_wl_surface_attach", header: "lockme/wayland_shim.h".}
-proc wlSurfaceDamageBuffer(surface: ptr WlSurface; x, y, width, height: int32) {.importc: "lockme_wl_surface_damage_buffer", header: "lockme/wayland_shim.h".}
-proc wlSurfaceCommit(surface: ptr WlSurface) {.importc: "lockme_wl_surface_commit", header: "lockme/wayland_shim.h".}
-proc wlBufferDestroy(buffer: ptr WlBuffer) {.importc: "lockme_wl_buffer_destroy", header: "lockme/wayland_shim.h".}
-proc wlShmCreatePool(shm: ptr WlShm; fd, size: int32): ptr WlShmPool {.importc: "lockme_wl_shm_create_pool", header: "lockme/wayland_shim.h".}
-proc wlShmDestroy(shm: ptr WlShm) {.importc: "lockme_wl_shm_destroy", header: "lockme/wayland_shim.h".}
-proc wlShmPoolCreateBuffer(pool: ptr WlShmPool; offset, width, height, stride: int32; format: uint32): ptr WlBuffer {.importc: "lockme_wl_shm_pool_create_buffer", header: "lockme/wayland_shim.h".}
-proc wlShmPoolDestroy(pool: ptr WlShmPool) {.importc: "lockme_wl_shm_pool_destroy", header: "lockme/wayland_shim.h".}
+proc wl_display_get_registry(
+  display: ptr WlDisplay
+): ptr WlRegistry {.importc, header: "<wayland-client-protocol.h>".}
 
-proc xdgWmBaseAddListener(wmBase: ptr XdgWmBase; listener: pointer; data: pointer): cint {.importc: "lockme_xdg_wm_base_add_listener", header: "lockme/wayland_shim.h".}
-proc xdgSurfaceAddListener(surface: ptr XdgSurface; listener: pointer; data: pointer): cint {.importc: "lockme_xdg_surface_add_listener", header: "lockme/wayland_shim.h".}
-proc xdgToplevelAddListener(toplevel: ptr XdgToplevel; listener: pointer; data: pointer): cint {.importc: "lockme_xdg_toplevel_add_listener", header: "lockme/wayland_shim.h".}
-proc xdgWmBaseDestroy(wmBase: ptr XdgWmBase) {.importc: "lockme_xdg_wm_base_destroy", header: "lockme/wayland_shim.h".}
-proc xdgWmBasePong(wmBase: ptr XdgWmBase; serial: uint32) {.importc: "lockme_xdg_wm_base_pong", header: "lockme/wayland_shim.h".}
-proc xdgWmBaseGetXdgSurface(wmBase: ptr XdgWmBase; surface: ptr WlSurface): ptr XdgSurface {.importc: "lockme_xdg_wm_base_get_xdg_surface", header: "lockme/wayland_shim.h".}
-proc xdgSurfaceDestroy(surface: ptr XdgSurface) {.importc: "lockme_xdg_surface_destroy", header: "lockme/wayland_shim.h".}
-proc xdgSurfaceAckConfigure(surface: ptr XdgSurface; serial: uint32) {.importc: "lockme_xdg_surface_ack_configure", header: "lockme/wayland_shim.h".}
-proc xdgSurfaceSetWindowGeometry(surface: ptr XdgSurface; x, y, width, height: int32) {.importc: "lockme_xdg_surface_set_window_geometry", header: "lockme/wayland_shim.h".}
-proc xdgSurfaceGetToplevel(surface: ptr XdgSurface): ptr XdgToplevel {.importc: "lockme_xdg_surface_get_toplevel", header: "lockme/wayland_shim.h".}
-proc xdgToplevelDestroy(toplevel: ptr XdgToplevel) {.importc: "lockme_xdg_toplevel_destroy", header: "lockme/wayland_shim.h".}
-proc xdgToplevelSetTitle(toplevel: ptr XdgToplevel; title: cstring) {.importc: "lockme_xdg_toplevel_set_title", header: "lockme/wayland_shim.h".}
-proc xdgToplevelSetAppId(toplevel: ptr XdgToplevel; appId: cstring) {.importc: "lockme_xdg_toplevel_set_app_id", header: "lockme/wayland_shim.h".}
-proc xdgToplevelSetMinSize(toplevel: ptr XdgToplevel; width, height: int32) {.importc: "lockme_xdg_toplevel_set_min_size", header: "lockme/wayland_shim.h".}
+proc wl_display_roundtrip(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
 
-proc memfd_create(name: cstring; flags: cuint): cint {.importc, header: "<sys/mman.h>".}
+proc wl_display_dispatch_pending(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
+
+proc wl_display_prepare_read(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
+
+proc wl_display_cancel_read(
+  display: ptr WlDisplay
+) {.importc, header: "<wayland-client.h>".}
+
+proc wl_display_read_events(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
+
+proc wl_display_flush(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
+
+proc wl_registry_destroy(
+  registry: ptr WlRegistry
+) {.importc, header: "<wayland-client-protocol.h>".}
+
+proc wl_registry_add_listener(
+  registry: ptr WlRegistry, listener: pointer, data: pointer
+): cint {.importc: "lockme_wl_registry_add_listener", header: "lockme/wayland_shim.h".}
+
+proc wl_buffer_add_listener(
+  buffer: ptr WlBuffer, listener: pointer, data: pointer
+): cint {.importc: "lockme_wl_buffer_add_listener", header: "lockme/wayland_shim.h".}
+
+proc ifaceNameWlCompositor(): cstring {.
+  importc: "lockme_iface_name_wl_compositor", header: "lockme/wayland_shim.h"
+.}
+
+proc ifaceNameWlShm(): cstring {.
+  importc: "lockme_iface_name_wl_shm", header: "lockme/wayland_shim.h"
+.}
+
+proc ifaceNameXdgWmBase(): cstring {.
+  importc: "lockme_iface_name_xdg_wm_base", header: "lockme/wayland_shim.h"
+.}
+
+proc bindWlCompositor(
+  registry: ptr WlRegistry, name, version: uint32
+): ptr WlCompositor {.
+  importc: "lockme_registry_bind_wl_compositor", header: "lockme/wayland_shim.h"
+.}
+
+proc bindWlShm(
+  registry: ptr WlRegistry, name, version: uint32
+): ptr WlShm {.importc: "lockme_registry_bind_wl_shm", header: "lockme/wayland_shim.h".}
+
+proc bindXdgWmBase(
+  registry: ptr WlRegistry, name, version: uint32
+): ptr XdgWmBase {.
+  importc: "lockme_registry_bind_xdg_wm_base", header: "lockme/wayland_shim.h"
+.}
+
+proc wlCreateSurface(
+  compositor: ptr WlCompositor
+): ptr WlSurface {.
+  importc: "lockme_wl_compositor_create_surface", header: "lockme/wayland_shim.h"
+.}
+
+proc wlCompositorDestroy(
+  compositor: ptr WlCompositor
+) {.importc: "lockme_wl_compositor_destroy", header: "lockme/wayland_shim.h".}
+
+proc wlSurfaceDestroy(
+  surface: ptr WlSurface
+) {.importc: "lockme_wl_surface_destroy", header: "lockme/wayland_shim.h".}
+
+proc wlSurfaceAttach(
+  surface: ptr WlSurface, buffer: ptr WlBuffer, x, y: int32
+) {.importc: "lockme_wl_surface_attach", header: "lockme/wayland_shim.h".}
+
+proc wlSurfaceDamageBuffer(
+  surface: ptr WlSurface, x, y, width, height: int32
+) {.importc: "lockme_wl_surface_damage_buffer", header: "lockme/wayland_shim.h".}
+
+proc wlSurfaceCommit(
+  surface: ptr WlSurface
+) {.importc: "lockme_wl_surface_commit", header: "lockme/wayland_shim.h".}
+
+proc wlBufferDestroy(
+  buffer: ptr WlBuffer
+) {.importc: "lockme_wl_buffer_destroy", header: "lockme/wayland_shim.h".}
+
+proc wlShmCreatePool(
+  shm: ptr WlShm, fd, size: int32
+): ptr WlShmPool {.
+  importc: "lockme_wl_shm_create_pool", header: "lockme/wayland_shim.h"
+.}
+
+proc wlShmDestroy(
+  shm: ptr WlShm
+) {.importc: "lockme_wl_shm_destroy", header: "lockme/wayland_shim.h".}
+
+proc wlShmPoolCreateBuffer(
+  pool: ptr WlShmPool, offset, width, height, stride: int32, format: uint32
+): ptr WlBuffer {.
+  importc: "lockme_wl_shm_pool_create_buffer", header: "lockme/wayland_shim.h"
+.}
+
+proc wlShmPoolDestroy(
+  pool: ptr WlShmPool
+) {.importc: "lockme_wl_shm_pool_destroy", header: "lockme/wayland_shim.h".}
+
+proc xdgWmBaseAddListener(
+  wmBase: ptr XdgWmBase, listener: pointer, data: pointer
+): cint {.importc: "lockme_xdg_wm_base_add_listener", header: "lockme/wayland_shim.h".}
+
+proc xdgSurfaceAddListener(
+  surface: ptr XdgSurface, listener: pointer, data: pointer
+): cint {.importc: "lockme_xdg_surface_add_listener", header: "lockme/wayland_shim.h".}
+
+proc xdgToplevelAddListener(
+  toplevel: ptr XdgToplevel, listener: pointer, data: pointer
+): cint {.importc: "lockme_xdg_toplevel_add_listener", header: "lockme/wayland_shim.h".}
+
+proc xdgWmBaseDestroy(
+  wmBase: ptr XdgWmBase
+) {.importc: "lockme_xdg_wm_base_destroy", header: "lockme/wayland_shim.h".}
+
+proc xdgWmBasePong(
+  wmBase: ptr XdgWmBase, serial: uint32
+) {.importc: "lockme_xdg_wm_base_pong", header: "lockme/wayland_shim.h".}
+
+proc xdgWmBaseGetXdgSurface(
+  wmBase: ptr XdgWmBase, surface: ptr WlSurface
+): ptr XdgSurface {.
+  importc: "lockme_xdg_wm_base_get_xdg_surface", header: "lockme/wayland_shim.h"
+.}
+
+proc xdgSurfaceDestroy(
+  surface: ptr XdgSurface
+) {.importc: "lockme_xdg_surface_destroy", header: "lockme/wayland_shim.h".}
+
+proc xdgSurfaceAckConfigure(
+  surface: ptr XdgSurface, serial: uint32
+) {.importc: "lockme_xdg_surface_ack_configure", header: "lockme/wayland_shim.h".}
+
+proc xdgSurfaceSetWindowGeometry(
+  surface: ptr XdgSurface, x, y, width, height: int32
+) {.importc: "lockme_xdg_surface_set_window_geometry", header: "lockme/wayland_shim.h".}
+
+proc xdgSurfaceGetToplevel(
+  surface: ptr XdgSurface
+): ptr XdgToplevel {.
+  importc: "lockme_xdg_surface_get_toplevel", header: "lockme/wayland_shim.h"
+.}
+
+proc xdgToplevelDestroy(
+  toplevel: ptr XdgToplevel
+) {.importc: "lockme_xdg_toplevel_destroy", header: "lockme/wayland_shim.h".}
+
+proc xdgToplevelSetTitle(
+  toplevel: ptr XdgToplevel, title: cstring
+) {.importc: "lockme_xdg_toplevel_set_title", header: "lockme/wayland_shim.h".}
+
+proc xdgToplevelSetAppId(
+  toplevel: ptr XdgToplevel, appId: cstring
+) {.importc: "lockme_xdg_toplevel_set_app_id", header: "lockme/wayland_shim.h".}
+
+proc xdgToplevelSetMinSize(
+  toplevel: ptr XdgToplevel, width, height: int32
+) {.importc: "lockme_xdg_toplevel_set_min_size", header: "lockme/wayland_shim.h".}
+
+proc memfd_create(name: cstring, flags: cuint): cint {.importc, header: "<sys/mman.h>".}
 
 var
   registryListener: WlRegistryListener
@@ -148,7 +342,7 @@ var
 proc fatal(message: string) {.noreturn.} =
   quit("lockme: " & message, 1)
 
-proc matrixNowMs(preview: Preview; now: MonoTime): int64 =
+proc matrixNowMs(preview: Preview, now: MonoTime): int64 =
   if preview.clockStart.ticks == 0:
     return 0
   (now - preview.clockStart).inMilliseconds
@@ -160,7 +354,7 @@ proc destroyBuffer(buf: var PreviewBuffer) =
     wlBufferDestroy(buf.buffer)
   buf = PreviewBuffer()
 
-proc destroyBuffers(preview: Preview; resetGpuUnavailable = true) =
+proc destroyBuffers(preview: Preview, resetGpuUnavailable = true) =
   if not preview.gpu.isNil:
     preview.gpu.close()
     preview.gpu = nil
@@ -203,20 +397,24 @@ proc createGpu(preview: Preview): bool =
       cast[pointer](preview.surface),
       int(preview.width),
       int(preview.height),
-      preview.atlas
+      preview.atlas,
     )
     if preview.gpu.isNil:
-      stderr.writeLine("lockme: warning: preview GPU renderer unavailable: " & matrixGpuLastError())
+      stderr.writeLine(
+        "lockme: warning: preview GPU renderer unavailable: " & matrixGpuLastError()
+      )
       preview.gpuUnavailable = true
       return false
   elif not preview.gpu.resize(int(preview.width), int(preview.height)):
-    stderr.writeLine("lockme: warning: preview GPU renderer resize failed: " & matrixGpuLastError())
+    stderr.writeLine(
+      "lockme: warning: preview GPU renderer resize failed: " & matrixGpuLastError()
+    )
     preview.gpu.close()
     preview.gpu = nil
     return false
   true
 
-proc createBuffers(preview: Preview; allowGpu = true): bool =
+proc createBuffers(preview: Preview, allowGpu = true): bool =
   if preview.width <= 0 or preview.height <= 0:
     return false
   if not preview.ensureRenderer():
@@ -230,7 +428,8 @@ proc createBuffers(preview: Preview; allowGpu = true): bool =
   if preview.shm.isNil:
     stderr.writeLine("lockme: warning: wl_shm unavailable for preview CPU fallback")
     return false
-  if preview.buffers[0].buffer != nil and preview.buffers[0].width == width and preview.buffers[0].height == height:
+  if preview.buffers[0].buffer != nil and preview.buffers[0].width == width and
+      preview.buffers[0].height == height:
     return true
 
   preview.destroyBuffers(resetGpuUnavailable = allowGpu)
@@ -243,8 +442,8 @@ proc createBuffers(preview: Preview; allowGpu = true): bool =
   let layout = matrixShmBufferLayout(width, height)
   if not layout.valid:
     stderr.writeLine(
-      "lockme: warning: preview buffer too large: " & $width & "x" & $height &
-      " (max " & $MatrixShmMaxDimension & "x" & $MatrixShmMaxDimension & ")"
+      "lockme: warning: preview buffer too large: " & $width & "x" & $height & " (max " &
+        $MatrixShmMaxDimension & "x" & $MatrixShmMaxDimension & ")"
     )
     return false
   let size = layout.size
@@ -278,7 +477,9 @@ proc createBuffers(preview: Preview; allowGpu = true): bool =
       stderr.writeLine("lockme: warning: wl_shm pool creation failed for preview")
       return false
 
-    let wlbuf = wlShmPoolCreateBuffer(pool, 0, width.int32, height.int32, stride.int32, WlShmFormatXrgb8888)
+    let wlbuf = wlShmPoolCreateBuffer(
+      pool, 0, width.int32, height.int32, stride.int32, WlShmFormatXrgb8888
+    )
     wlShmPoolDestroy(pool)
     if wlbuf.isNil:
       discard munmap(mapped, size)
@@ -292,9 +493,11 @@ proc createBuffers(preview: Preview; allowGpu = true): bool =
       width: width,
       height: height,
       size: size,
-      busy: false
+      busy: false,
     )
-    discard wl_buffer_add_listener(buf.buffer, cast[pointer](addr bufferListener), cast[pointer](buf))
+    discard wl_buffer_add_listener(
+      buf.buffer, cast[pointer](addr bufferListener), cast[pointer](buf)
+    )
 
   preview.rain = initMatrixRain(geometry.cols, geometry.rows)
   true
@@ -304,7 +507,8 @@ proc createBlankBuffer(preview: Preview): bool =
     return false
   let width = int(preview.width)
   let height = int(preview.height)
-  if not preview.blankBuffer.buffer.isNil and preview.blankBuffer.width == width and preview.blankBuffer.height == height:
+  if not preview.blankBuffer.buffer.isNil and preview.blankBuffer.width == width and
+      preview.blankBuffer.height == height:
     return true
   preview.blankBuffer.destroyBuffer()
   if preview.shm.isNil:
@@ -314,7 +518,7 @@ proc createBlankBuffer(preview: Preview): bool =
   if not layout.valid:
     stderr.writeLine(
       "lockme: warning: blank preview buffer too large: " & $width & "x" & $height &
-      " (max " & $MatrixShmMaxDimension & "x" & $MatrixShmMaxDimension & ")"
+        " (max " & $MatrixShmMaxDimension & "x" & $MatrixShmMaxDimension & ")"
     )
     return false
   let size = layout.size
@@ -338,7 +542,9 @@ proc createBlankBuffer(preview: Preview): bool =
     discard munmap(mapped, size)
     stderr.writeLine("lockme: warning: wl_shm pool creation failed for blank preview")
     return false
-  let wlbuf = wlShmPoolCreateBuffer(pool, 0, width.int32, height.int32, stride.int32, WlShmFormatXrgb8888)
+  let wlbuf = wlShmPoolCreateBuffer(
+    pool, 0, width.int32, height.int32, stride.int32, WlShmFormatXrgb8888
+  )
   wlShmPoolDestroy(pool)
   if wlbuf.isNil:
     discard munmap(mapped, size)
@@ -350,14 +556,13 @@ proc createBlankBuffer(preview: Preview): bool =
   for i in 0 ..< width * height:
     pixels[i] = color
   preview.blankBuffer = PreviewBuffer(
-    buffer: wlbuf,
-    data: pixels,
-    width: width,
-    height: height,
-    size: size,
-    busy: false
+    buffer: wlbuf, data: pixels, width: width, height: height, size: size, busy: false
   )
-  discard wl_buffer_add_listener(preview.blankBuffer.buffer, cast[pointer](addr bufferListener), cast[pointer](addr preview.blankBuffer))
+  discard wl_buffer_add_listener(
+    preview.blankBuffer.buffer,
+    cast[pointer](addr bufferListener),
+    cast[pointer](addr preview.blankBuffer),
+  )
   true
 
 proc presentBlank(preview: Preview): bool =
@@ -387,10 +592,13 @@ proc presentFrame(preview: Preview): bool =
       preview.opts.matrixFallSpeed,
       preview.opts.matrixCycleSpeed,
       preview.opts.matrixRaindropLength,
-      preview.opts.matrixBrightnessDecay
+      preview.opts.matrixBrightnessDecay,
     ):
       return true
-    stderr.writeLine("lockme: warning: preview GPU renderer failed during render; using CPU renderer fallback: " & matrixGpuLastError())
+    stderr.writeLine(
+      "lockme: warning: preview GPU renderer failed during render; using CPU renderer fallback: " &
+        matrixGpuLastError()
+    )
     preview.gpu.close()
     preview.gpu = nil
     preview.gpuUnavailable = true
@@ -414,7 +622,13 @@ proc presentFrame(preview: Preview): bool =
 
   true
 
-proc registryGlobal(data: pointer; registry: ptr WlRegistry; name: uint32; iface: cstring; version: uint32) {.cdecl.} =
+proc registryGlobal(
+    data: pointer,
+    registry: ptr WlRegistry,
+    name: uint32,
+    iface: cstring,
+    version: uint32,
+) {.cdecl.} =
   let preview = cast[Preview](data)
   let ifaceName = $iface
   if ifaceName == $ifaceNameWlCompositor() and preview.compositor.isNil:
@@ -425,19 +639,25 @@ proc registryGlobal(data: pointer; registry: ptr WlRegistry; name: uint32; iface
     preview.shm = bindWlShm(registry, name, 1)
   elif ifaceName == $ifaceNameXdgWmBase() and preview.xdgWmBase.isNil:
     preview.xdgWmBase = bindXdgWmBase(registry, name, min(version, 6'u32))
-    discard xdgWmBaseAddListener(preview.xdgWmBase, cast[pointer](addr wmBaseListener), cast[pointer](preview))
+    discard xdgWmBaseAddListener(
+      preview.xdgWmBase, cast[pointer](addr wmBaseListener), cast[pointer](preview)
+    )
 
-proc registryGlobalRemove(data: pointer; registry: ptr WlRegistry; name: uint32) {.cdecl.} =
+proc registryGlobalRemove(
+    data: pointer, registry: ptr WlRegistry, name: uint32
+) {.cdecl.} =
   discard
 
-proc bufferRelease(data: pointer; buffer: ptr WlBuffer) {.cdecl.} =
+proc bufferRelease(data: pointer, buffer: ptr WlBuffer) {.cdecl.} =
   let previewBuffer = cast[ptr PreviewBuffer](data)
   previewBuffer.busy = false
 
-proc wmBasePing(data: pointer; wmBase: ptr XdgWmBase; serial: uint32) {.cdecl.} =
+proc wmBasePing(data: pointer, wmBase: ptr XdgWmBase, serial: uint32) {.cdecl.} =
   xdgWmBasePong(wmBase, serial)
 
-proc xdgSurfaceConfigure(data: pointer; surface: ptr XdgSurface; serial: uint32) {.cdecl.} =
+proc xdgSurfaceConfigure(
+    data: pointer, surface: ptr XdgSurface, serial: uint32
+) {.cdecl.} =
   let preview = cast[Preview](data)
   xdgSurfaceAckConfigure(surface, serial)
   if preview.pendingWidth > 0 and preview.pendingHeight > 0 and
@@ -448,25 +668,32 @@ proc xdgSurfaceConfigure(data: pointer; surface: ptr XdgSurface; serial: uint32)
   preview.configured = true
   discard preview.presentFrame()
 
-proc xdgToplevelConfigure(data: pointer; toplevel: ptr XdgToplevel; width, height: int32; states: ptr WlArray) {.cdecl.} =
+proc xdgToplevelConfigure(
+    data: pointer, toplevel: ptr XdgToplevel, width, height: int32, states: ptr WlArray
+) {.cdecl.} =
   let preview = cast[Preview](data)
   if width > 0:
     preview.pendingWidth = width
   if height > 0:
     preview.pendingHeight = height
 
-proc xdgToplevelClose(data: pointer; toplevel: ptr XdgToplevel) {.cdecl.} =
+proc xdgToplevelClose(data: pointer, toplevel: ptr XdgToplevel) {.cdecl.} =
   let preview = cast[Preview](data)
   preview.running = false
 
-proc xdgToplevelConfigureBounds(data: pointer; toplevel: ptr XdgToplevel; width, height: int32) {.cdecl.} =
+proc xdgToplevelConfigureBounds(
+    data: pointer, toplevel: ptr XdgToplevel, width, height: int32
+) {.cdecl.} =
   discard
 
-proc xdgToplevelWmCapabilities(data: pointer; toplevel: ptr XdgToplevel; capabilities: ptr WlArray) {.cdecl.} =
+proc xdgToplevelWmCapabilities(
+    data: pointer, toplevel: ptr XdgToplevel, capabilities: ptr WlArray
+) {.cdecl.} =
   discard
 
 proc initListeners() =
-  registryListener = WlRegistryListener(global: registryGlobal, globalRemove: registryGlobalRemove)
+  registryListener =
+    WlRegistryListener(global: registryGlobal, globalRemove: registryGlobalRemove)
   bufferListener = WlBufferListener(release: bufferRelease)
   wmBaseListener = XdgWmBaseListener(ping: wmBasePing)
   xdgSurfaceListener = XdgSurfaceListener(configure: xdgSurfaceConfigure)
@@ -474,7 +701,7 @@ proc initListeners() =
     configure: xdgToplevelConfigure,
     close: xdgToplevelClose,
     configureBounds: xdgToplevelConfigureBounds,
-    wmCapabilities: xdgToplevelWmCapabilities
+    wmCapabilities: xdgToplevelWmCapabilities,
   )
 
 proc flushAndPrepareRead(preview: Preview) =
@@ -486,7 +713,8 @@ proc flushAndPrepareRead(preview: Preview) =
     if rc >= 0:
       return
     if errno == EAGAIN:
-      var pfd = TPollfd(fd: wl_display_get_fd(preview.display), events: POLLOUT, revents: 0)
+      var pfd =
+        TPollfd(fd: wl_display_get_fd(preview.display), events: POLLOUT, revents: 0)
       discard poll(addr pfd, Tnfds(1), -1)
     else:
       discard wl_display_read_events(preview.display)
@@ -521,7 +749,7 @@ proc connectAndCreate(opts: Options): Preview =
     height: PreviewInitialHeight,
     pendingWidth: PreviewInitialWidth,
     pendingHeight: PreviewInitialHeight,
-    clockStart: getMonoTime()
+    clockStart: getMonoTime(),
   )
 
   if not opts.blank:
@@ -531,7 +759,9 @@ proc connectAndCreate(opts: Options): Preview =
   if result.display.isNil:
     fatal("failed to connect to a Wayland compositor")
   result.registry = wl_display_get_registry(result.display)
-  discard wl_registry_add_listener(result.registry, cast[pointer](addr registryListener), cast[pointer](result))
+  discard wl_registry_add_listener(
+    result.registry, cast[pointer](addr registryListener), cast[pointer](result)
+  )
   if wl_display_roundtrip(result.display) < 0:
     fatal("initial Wayland roundtrip failed")
   if result.compositor.isNil:
@@ -547,11 +777,15 @@ proc connectAndCreate(opts: Options): Preview =
   result.xdgSurface = xdgWmBaseGetXdgSurface(result.xdgWmBase, result.surface)
   if result.xdgSurface.isNil:
     fatal("failed to create preview xdg_surface")
-  discard xdgSurfaceAddListener(result.xdgSurface, cast[pointer](addr xdgSurfaceListener), cast[pointer](result))
+  discard xdgSurfaceAddListener(
+    result.xdgSurface, cast[pointer](addr xdgSurfaceListener), cast[pointer](result)
+  )
   result.xdgToplevel = xdgSurfaceGetToplevel(result.xdgSurface)
   if result.xdgToplevel.isNil:
     fatal("failed to create preview xdg_toplevel")
-  discard xdgToplevelAddListener(result.xdgToplevel, cast[pointer](addr xdgToplevelListener), cast[pointer](result))
+  discard xdgToplevelAddListener(
+    result.xdgToplevel, cast[pointer](addr xdgToplevelListener), cast[pointer](result)
+  )
   xdgToplevelSetTitle(result.xdgToplevel, "lockme Matrix preview".cstring)
   xdgToplevelSetAppId(result.xdgToplevel, "lockme-preview".cstring)
   xdgToplevelSetMinSize(result.xdgToplevel, PreviewMinWidth, PreviewMinHeight)
@@ -560,7 +794,8 @@ proc connectAndCreate(opts: Options): Preview =
 proc runDevWindow*(opts: Options) =
   initListeners()
   let preview = connectAndCreate(opts)
-  defer: preview.deinit()
+  defer:
+    preview.deinit()
 
   var pollfd: TPollfd
   while preview.running:
@@ -569,12 +804,14 @@ proc runDevWindow*(opts: Options) =
 
     let pollStart = getMonoTime()
     let matrixVisible = preview.configured and not preview.opts.blank
-    let timeout = cint(matrixFrameTimeoutMs(
-      preview.ticker,
-      matrixVisible,
-      preview.matrixNowMs(pollStart),
-      preview.opts.matrixFrameMs
-    ))
+    let timeout = cint(
+      matrixFrameTimeoutMs(
+        preview.ticker,
+        matrixVisible,
+        preview.matrixNowMs(pollStart),
+        preview.opts.matrixFrameMs,
+      )
+    )
 
     let pollRc = poll(addr pollfd, Tnfds(1), timeout)
     if pollRc < 0:
@@ -596,7 +833,7 @@ proc runDevWindow*(opts: Options) =
       preview.ticker,
       preview.configured and not preview.opts.blank,
       preview.matrixNowMs(frameNow),
-      preview.opts.matrixFrameMs
+      preview.opts.matrixFrameMs,
     ):
       preview.rain.advance()
       discard preview.presentFrame()

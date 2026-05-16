@@ -12,7 +12,10 @@ const
   PkgConfigCheck = gorgeEx("pkg-config --exists " & PkgConfigDeps)
 
 when PkgConfigCheck.exitCode != 0:
-  {.error: "missing system dependencies: install pkg-config plus development packages for wayland-client, xkbcommon, and pam".}
+  {.
+    error:
+      "missing system dependencies: install pkg-config plus development packages for wayland-client, xkbcommon, and pam"
+  .}
 
 {.passC: "-Isrc -Isrc/lockme " & gorge("pkg-config --cflags " & PkgConfigDeps).}
 {.compile: "wayland_shim.c".}
@@ -39,77 +42,204 @@ const
   XkbStateModsLatched = 2.cint
 
 type
-  WlDisplay {.importc: "struct wl_display", header: "<wayland-client.h>", incompleteStruct.} = object
-  WlRegistry {.importc: "struct wl_registry", header: "<wayland-client.h>", incompleteStruct.} = object
-  WlCompositor {.importc: "struct wl_compositor", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlSurface {.importc: "struct wl_surface", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlBuffer {.importc: "struct wl_buffer", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlOutput {.importc: "struct wl_output", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlShm {.importc: "struct wl_shm", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlShmPool {.importc: "struct wl_shm_pool", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlSeat {.importc: "struct wl_seat", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlPointer {.importc: "struct wl_pointer", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlKeyboard {.importc: "struct wl_keyboard", header: "<wayland-client-protocol.h>", incompleteStruct.} = object
-  WlArray {.importc: "struct wl_array", header: "<wayland-util.h>", incompleteStruct.} = object
-  ExtSessionLockManager {.importc: "struct ext_session_lock_manager_v1", header: "lockme/wayland_shim.h", incompleteStruct.} = object
-  ExtSessionLock {.importc: "struct ext_session_lock_v1", header: "lockme/wayland_shim.h", incompleteStruct.} = object
-  ExtSessionLockSurface {.importc: "struct ext_session_lock_surface_v1", header: "lockme/wayland_shim.h", incompleteStruct.} = object
-  WpSinglePixelBufferManager {.importc: "struct wp_single_pixel_buffer_manager_v1", header: "lockme/wayland_shim.h", incompleteStruct.} = object
-  WpViewporter {.importc: "struct wp_viewporter", header: "lockme/wayland_shim.h", incompleteStruct.} = object
-  WpViewport {.importc: "struct wp_viewport", header: "lockme/wayland_shim.h", incompleteStruct.} = object
+  WlDisplay {.
+    importc: "struct wl_display", header: "<wayland-client.h>", incompleteStruct
+  .} = object
 
-  XkbContext {.importc: "struct xkb_context", header: "<xkbcommon/xkbcommon.h>", incompleteStruct.} = object
-  XkbKeymap {.importc: "struct xkb_keymap", header: "<xkbcommon/xkbcommon.h>", incompleteStruct.} = object
-  XkbState {.importc: "struct xkb_state", header: "<xkbcommon/xkbcommon.h>", incompleteStruct.} = object
+  WlRegistry {.
+    importc: "struct wl_registry", header: "<wayland-client.h>", incompleteStruct
+  .} = object
+
+  WlCompositor {.
+    importc: "struct wl_compositor",
+    header: "<wayland-client-protocol.h>",
+    incompleteStruct
+  .} = object
+
+  WlSurface {.
+    importc: "struct wl_surface",
+    header: "<wayland-client-protocol.h>",
+    incompleteStruct
+  .} = object
+
+  WlBuffer {.
+    importc: "struct wl_buffer", header: "<wayland-client-protocol.h>", incompleteStruct
+  .} = object
+
+  WlOutput {.
+    importc: "struct wl_output", header: "<wayland-client-protocol.h>", incompleteStruct
+  .} = object
+
+  WlShm {.
+    importc: "struct wl_shm", header: "<wayland-client-protocol.h>", incompleteStruct
+  .} = object
+
+  WlShmPool {.
+    importc: "struct wl_shm_pool",
+    header: "<wayland-client-protocol.h>",
+    incompleteStruct
+  .} = object
+
+  WlSeat {.
+    importc: "struct wl_seat", header: "<wayland-client-protocol.h>", incompleteStruct
+  .} = object
+
+  WlPointer {.
+    importc: "struct wl_pointer",
+    header: "<wayland-client-protocol.h>",
+    incompleteStruct
+  .} = object
+
+  WlKeyboard {.
+    importc: "struct wl_keyboard",
+    header: "<wayland-client-protocol.h>",
+    incompleteStruct
+  .} = object
+  WlArray {.importc: "struct wl_array", header: "<wayland-util.h>", incompleteStruct.} = object
+
+  ExtSessionLockManager {.
+    importc: "struct ext_session_lock_manager_v1",
+    header: "lockme/wayland_shim.h",
+    incompleteStruct
+  .} = object
+
+  ExtSessionLock {.
+    importc: "struct ext_session_lock_v1",
+    header: "lockme/wayland_shim.h",
+    incompleteStruct
+  .} = object
+
+  ExtSessionLockSurface {.
+    importc: "struct ext_session_lock_surface_v1",
+    header: "lockme/wayland_shim.h",
+    incompleteStruct
+  .} = object
+
+  WpSinglePixelBufferManager {.
+    importc: "struct wp_single_pixel_buffer_manager_v1",
+    header: "lockme/wayland_shim.h",
+    incompleteStruct
+  .} = object
+
+  WpViewporter {.
+    importc: "struct wp_viewporter", header: "lockme/wayland_shim.h", incompleteStruct
+  .} = object
+
+  WpViewport {.
+    importc: "struct wp_viewport", header: "lockme/wayland_shim.h", incompleteStruct
+  .} = object
+
+  XkbContext {.
+    importc: "struct xkb_context", header: "<xkbcommon/xkbcommon.h>", incompleteStruct
+  .} = object
+
+  XkbKeymap {.
+    importc: "struct xkb_keymap", header: "<xkbcommon/xkbcommon.h>", incompleteStruct
+  .} = object
+
+  XkbState {.
+    importc: "struct xkb_state", header: "<xkbcommon/xkbcommon.h>", incompleteStruct
+  .} = object
 
   WlRegistryListener {.bycopy.} = object
-    global: proc(data: pointer; registry: ptr WlRegistry; name: uint32; iface: cstring; version: uint32) {.cdecl.}
-    globalRemove {.importc: "global_remove".}: proc(data: pointer; registry: ptr WlRegistry; name: uint32) {.cdecl.}
+    global: proc(
+      data: pointer,
+      registry: ptr WlRegistry,
+      name: uint32,
+      iface: cstring,
+      version: uint32,
+    ) {.cdecl.}
+    globalRemove {.importc: "global_remove".}:
+      proc(data: pointer, registry: ptr WlRegistry, name: uint32) {.cdecl.}
 
   WlSeatListener {.bycopy.} = object
-    capabilities: proc(data: pointer; seat: ptr WlSeat; capabilities: uint32) {.cdecl.}
-    name: proc(data: pointer; seat: ptr WlSeat; name: cstring) {.cdecl.}
+    capabilities: proc(data: pointer, seat: ptr WlSeat, capabilities: uint32) {.cdecl.}
+    name: proc(data: pointer, seat: ptr WlSeat, name: cstring) {.cdecl.}
 
   WlPointerListener {.bycopy.} = object
-    enter: proc(data: pointer; pointer: ptr WlPointer; serial: uint32; surface: ptr WlSurface; x, y: int32) {.cdecl.}
-    leave: proc(data: pointer; pointer: ptr WlPointer; serial: uint32; surface: ptr WlSurface) {.cdecl.}
-    motion: proc(data: pointer; pointer: ptr WlPointer; time: uint32; x, y: int32) {.cdecl.}
-    button: proc(data: pointer; pointer: ptr WlPointer; serial, time, button, state: uint32) {.cdecl.}
-    axis: proc(data: pointer; pointer: ptr WlPointer; time, axis: uint32; value: int32) {.cdecl.}
-    frame: proc(data: pointer; pointer: ptr WlPointer) {.cdecl.}
-    axisSource {.importc: "axis_source".}: proc(data: pointer; pointer: ptr WlPointer; axisSource: uint32) {.cdecl.}
-    axisStop {.importc: "axis_stop".}: proc(data: pointer; pointer: ptr WlPointer; time, axis: uint32) {.cdecl.}
-    axisDiscrete {.importc: "axis_discrete".}: proc(data: pointer; pointer: ptr WlPointer; axis: uint32; discrete: int32) {.cdecl.}
-    axisValue120 {.importc: "axis_value120".}: proc(data: pointer; pointer: ptr WlPointer; axis: uint32; value120: int32) {.cdecl.}
-    axisRelativeDirection {.importc: "axis_relative_direction".}: proc(data: pointer; pointer: ptr WlPointer; axis, direction: uint32) {.cdecl.}
+    enter: proc(
+      data: pointer,
+      pointer: ptr WlPointer,
+      serial: uint32,
+      surface: ptr WlSurface,
+      x, y: int32,
+    ) {.cdecl.}
+    leave: proc(
+      data: pointer, pointer: ptr WlPointer, serial: uint32, surface: ptr WlSurface
+    ) {.cdecl.}
+    motion:
+      proc(data: pointer, pointer: ptr WlPointer, time: uint32, x, y: int32) {.cdecl.}
+    button: proc(
+      data: pointer, pointer: ptr WlPointer, serial, time, button, state: uint32
+    ) {.cdecl.}
+    axis: proc(data: pointer, pointer: ptr WlPointer, time, axis: uint32, value: int32) {.
+      cdecl
+    .}
+    frame: proc(data: pointer, pointer: ptr WlPointer) {.cdecl.}
+    axisSource {.importc: "axis_source".}:
+      proc(data: pointer, pointer: ptr WlPointer, axisSource: uint32) {.cdecl.}
+    axisStop {.importc: "axis_stop".}:
+      proc(data: pointer, pointer: ptr WlPointer, time, axis: uint32) {.cdecl.}
+    axisDiscrete {.importc: "axis_discrete".}: proc(
+      data: pointer, pointer: ptr WlPointer, axis: uint32, discrete: int32
+    ) {.cdecl.}
+    axisValue120 {.importc: "axis_value120".}: proc(
+      data: pointer, pointer: ptr WlPointer, axis: uint32, value120: int32
+    ) {.cdecl.}
+    axisRelativeDirection {.importc: "axis_relative_direction".}:
+      proc(data: pointer, pointer: ptr WlPointer, axis, direction: uint32) {.cdecl.}
 
   WlBufferListener {.bycopy.} = object
-    release: proc(data: pointer; buffer: ptr WlBuffer) {.cdecl.}
+    release: proc(data: pointer, buffer: ptr WlBuffer) {.cdecl.}
 
   WlKeyboardListener {.bycopy.} = object
-    keymap: proc(data: pointer; keyboard: ptr WlKeyboard; format: uint32; fd: int32; size: uint32) {.cdecl.}
-    enter: proc(data: pointer; keyboard: ptr WlKeyboard; serial: uint32; surface: ptr WlSurface; keys: ptr WlArray) {.cdecl.}
-    leave: proc(data: pointer; keyboard: ptr WlKeyboard; serial: uint32; surface: ptr WlSurface) {.cdecl.}
-    key: proc(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, state: uint32) {.cdecl.}
-    modifiers: proc(data: pointer; keyboard: ptr WlKeyboard; serial, modsDepressed, modsLatched, modsLocked, group: uint32) {.cdecl.}
-    repeatInfo {.importc: "repeat_info".}: proc(data: pointer; keyboard: ptr WlKeyboard; rate, delay: int32) {.cdecl.}
+    keymap: proc(
+      data: pointer, keyboard: ptr WlKeyboard, format: uint32, fd: int32, size: uint32
+    ) {.cdecl.}
+    enter: proc(
+      data: pointer,
+      keyboard: ptr WlKeyboard,
+      serial: uint32,
+      surface: ptr WlSurface,
+      keys: ptr WlArray,
+    ) {.cdecl.}
+    leave: proc(
+      data: pointer, keyboard: ptr WlKeyboard, serial: uint32, surface: ptr WlSurface
+    ) {.cdecl.}
+    key: proc(data: pointer, keyboard: ptr WlKeyboard, serial, time, key, state: uint32) {.
+      cdecl
+    .}
+    modifiers: proc(
+      data: pointer,
+      keyboard: ptr WlKeyboard,
+      serial, modsDepressed, modsLatched, modsLocked, group: uint32,
+    ) {.cdecl.}
+    repeatInfo {.importc: "repeat_info".}:
+      proc(data: pointer, keyboard: ptr WlKeyboard, rate, delay: int32) {.cdecl.}
 
   ExtSessionLockListener {.bycopy.} = object
-    locked: proc(data: pointer; lock: ptr ExtSessionLock) {.cdecl.}
-    finished: proc(data: pointer; lock: ptr ExtSessionLock) {.cdecl.}
+    locked: proc(data: pointer, lock: ptr ExtSessionLock) {.cdecl.}
+    finished: proc(data: pointer, lock: ptr ExtSessionLock) {.cdecl.}
 
   ExtSessionLockSurfaceListener {.bycopy.} = object
-    configure: proc(data: pointer; surface: ptr ExtSessionLockSurface; serial, width, height: uint32) {.cdecl.}
+    configure: proc(
+      data: pointer, surface: ptr ExtSessionLockSurface, serial, width, height: uint32
+    ) {.cdecl.}
 
   ColorKind = enum
-    ckInit, ckInput, ckFail
+    ckInit
+    ckInput
+    ckFail
 
   ColorState = object
     kind: ColorKind
     inputIdx: int
 
   LockState = enum
-    lsInitializing, lsLocking, lsLocked, lsExiting
+    lsInitializing
+    lsLocking
+    lsLocked
+    lsExiting
 
   MatrixBuffer = object
     buffer: ptr WlBuffer
@@ -175,102 +305,381 @@ type
 
   Lock = ref LockObj
 
-proc wl_display_connect(name: cstring): ptr WlDisplay {.importc, header: "<wayland-client.h>".}
-proc wl_display_disconnect(display: ptr WlDisplay) {.importc, header: "<wayland-client.h>".}
-proc wl_display_get_fd(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_display_get_registry(display: ptr WlDisplay): ptr WlRegistry {.importc, header: "<wayland-client-protocol.h>".}
-proc wl_display_roundtrip(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_display_dispatch_pending(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_display_prepare_read(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_display_cancel_read(display: ptr WlDisplay) {.importc, header: "<wayland-client.h>".}
-proc wl_display_read_events(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_display_flush(display: ptr WlDisplay): cint {.importc, header: "<wayland-client.h>".}
-proc wl_registry_destroy(registry: ptr WlRegistry) {.importc, header: "<wayland-client-protocol.h>".}
-proc wl_registry_add_listener(registry: ptr WlRegistry; listener: pointer; data: pointer): cint {.importc: "lockme_wl_registry_add_listener", header: "lockme/wayland_shim.h".}
-proc wl_seat_add_listener(seat: ptr WlSeat; listener: pointer; data: pointer): cint {.importc: "lockme_wl_seat_add_listener", header: "lockme/wayland_shim.h".}
-proc wl_pointer_add_listener(pointer: ptr WlPointer; listener: pointer; data: pointer): cint {.importc: "lockme_wl_pointer_add_listener", header: "lockme/wayland_shim.h".}
-proc wl_keyboard_add_listener(keyboard: ptr WlKeyboard; listener: pointer; data: pointer): cint {.importc: "lockme_wl_keyboard_add_listener", header: "lockme/wayland_shim.h".}
-proc wl_buffer_add_listener(buffer: ptr WlBuffer; listener: pointer; data: pointer): cint {.importc: "lockme_wl_buffer_add_listener", header: "lockme/wayland_shim.h".}
-proc ext_session_lock_v1_add_listener(lock: ptr ExtSessionLock; listener: pointer; data: pointer): cint {.importc: "lockme_ext_session_lock_v1_add_listener", header: "lockme/wayland_shim.h".}
-proc ext_session_lock_surface_v1_add_listener(surface: ptr ExtSessionLockSurface; listener: pointer; data: pointer): cint {.importc: "lockme_ext_session_lock_surface_v1_add_listener", header: "lockme/wayland_shim.h".}
+proc wl_display_connect(
+  name: cstring
+): ptr WlDisplay {.importc, header: "<wayland-client.h>".}
 
-proc ifaceNameWlCompositor(): cstring {.importc: "lockme_iface_name_wl_compositor", header: "lockme/wayland_shim.h".}
-proc ifaceNameWlOutput(): cstring {.importc: "lockme_iface_name_wl_output", header: "lockme/wayland_shim.h".}
-proc ifaceNameWlSeat(): cstring {.importc: "lockme_iface_name_wl_seat", header: "lockme/wayland_shim.h".}
-proc ifaceNameWlShm(): cstring {.importc: "lockme_iface_name_wl_shm", header: "lockme/wayland_shim.h".}
-proc ifaceNameLockManager(): cstring {.importc: "lockme_iface_name_ext_session_lock_manager_v1", header: "lockme/wayland_shim.h".}
-proc ifaceNameViewporter(): cstring {.importc: "lockme_iface_name_wp_viewporter", header: "lockme/wayland_shim.h".}
-proc ifaceNamePixelManager(): cstring {.importc: "lockme_iface_name_wp_single_pixel_buffer_manager_v1", header: "lockme/wayland_shim.h".}
+proc wl_display_disconnect(
+  display: ptr WlDisplay
+) {.importc, header: "<wayland-client.h>".}
 
-proc bindWlCompositor(registry: ptr WlRegistry; name, version: uint32): ptr WlCompositor {.importc: "lockme_registry_bind_wl_compositor", header: "lockme/wayland_shim.h".}
-proc bindWlOutput(registry: ptr WlRegistry; name, version: uint32): ptr WlOutput {.importc: "lockme_registry_bind_wl_output", header: "lockme/wayland_shim.h".}
-proc bindWlSeat(registry: ptr WlRegistry; name, version: uint32): ptr WlSeat {.importc: "lockme_registry_bind_wl_seat", header: "lockme/wayland_shim.h".}
-proc bindWlShm(registry: ptr WlRegistry; name, version: uint32): ptr WlShm {.importc: "lockme_registry_bind_wl_shm", header: "lockme/wayland_shim.h".}
-proc bindLockManager(registry: ptr WlRegistry; name, version: uint32): ptr ExtSessionLockManager {.importc: "lockme_registry_bind_ext_session_lock_manager_v1", header: "lockme/wayland_shim.h".}
-proc bindViewporter(registry: ptr WlRegistry; name, version: uint32): ptr WpViewporter {.importc: "lockme_registry_bind_wp_viewporter", header: "lockme/wayland_shim.h".}
-proc bindPixelManager(registry: ptr WlRegistry; name, version: uint32): ptr WpSinglePixelBufferManager {.importc: "lockme_registry_bind_wp_single_pixel_buffer_manager_v1", header: "lockme/wayland_shim.h".}
+proc wl_display_get_fd(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
 
-proc wlCreateSurface(compositor: ptr WlCompositor): ptr WlSurface {.importc: "lockme_wl_compositor_create_surface", header: "lockme/wayland_shim.h".}
-proc wlCompositorDestroy(compositor: ptr WlCompositor) {.importc: "lockme_wl_compositor_destroy", header: "lockme/wayland_shim.h".}
-proc wlSurfaceDestroy(surface: ptr WlSurface) {.importc: "lockme_wl_surface_destroy", header: "lockme/wayland_shim.h".}
-proc wlSurfaceAttach(surface: ptr WlSurface; buffer: ptr WlBuffer; x, y: int32) {.importc: "lockme_wl_surface_attach", header: "lockme/wayland_shim.h".}
-proc wlSurfaceDamageBuffer(surface: ptr WlSurface; x, y, width, height: int32) {.importc: "lockme_wl_surface_damage_buffer", header: "lockme/wayland_shim.h".}
-proc wlSurfaceCommit(surface: ptr WlSurface) {.importc: "lockme_wl_surface_commit", header: "lockme/wayland_shim.h".}
-proc wlBufferDestroy(buffer: ptr WlBuffer) {.importc: "lockme_wl_buffer_destroy", header: "lockme/wayland_shim.h".}
-proc wlOutputRelease(output: ptr WlOutput) {.importc: "lockme_wl_output_release", header: "lockme/wayland_shim.h".}
-proc wlShmCreatePool(shm: ptr WlShm; fd, size: int32): ptr WlShmPool {.importc: "lockme_wl_shm_create_pool", header: "lockme/wayland_shim.h".}
-proc wlShmDestroy(shm: ptr WlShm) {.importc: "lockme_wl_shm_destroy", header: "lockme/wayland_shim.h".}
-proc wlShmPoolCreateBuffer(pool: ptr WlShmPool; offset, width, height, stride: int32; format: uint32): ptr WlBuffer {.importc: "lockme_wl_shm_pool_create_buffer", header: "lockme/wayland_shim.h".}
-proc wlShmPoolDestroy(pool: ptr WlShmPool) {.importc: "lockme_wl_shm_pool_destroy", header: "lockme/wayland_shim.h".}
-proc wlSeatGetPointer(seat: ptr WlSeat): ptr WlPointer {.importc: "lockme_wl_seat_get_pointer", header: "lockme/wayland_shim.h".}
-proc wlSeatGetKeyboard(seat: ptr WlSeat): ptr WlKeyboard {.importc: "lockme_wl_seat_get_keyboard", header: "lockme/wayland_shim.h".}
-proc wlSeatRelease(seat: ptr WlSeat) {.importc: "lockme_wl_seat_release", header: "lockme/wayland_shim.h".}
-proc wlPointerRelease(pointer: ptr WlPointer) {.importc: "lockme_wl_pointer_release", header: "lockme/wayland_shim.h".}
-proc wlPointerSetCursor(pointer: ptr WlPointer; serial: uint32; surface: ptr WlSurface; x, y: int32) {.importc: "lockme_wl_pointer_set_cursor", header: "lockme/wayland_shim.h".}
-proc wlKeyboardRelease(keyboard: ptr WlKeyboard) {.importc: "lockme_wl_keyboard_release", header: "lockme/wayland_shim.h".}
+proc wl_display_get_registry(
+  display: ptr WlDisplay
+): ptr WlRegistry {.importc, header: "<wayland-client-protocol.h>".}
 
-proc lockManagerLock(manager: ptr ExtSessionLockManager): ptr ExtSessionLock {.importc: "lockme_ext_session_lock_manager_v1_lock", header: "lockme/wayland_shim.h".}
-proc lockManagerDestroy(manager: ptr ExtSessionLockManager) {.importc: "lockme_ext_session_lock_manager_v1_destroy", header: "lockme/wayland_shim.h".}
-proc sessionLockDestroy(lock: ptr ExtSessionLock) {.importc: "lockme_ext_session_lock_v1_destroy", header: "lockme/wayland_shim.h".}
-proc sessionLockUnlockAndDestroy(lock: ptr ExtSessionLock) {.importc: "lockme_ext_session_lock_v1_unlock_and_destroy", header: "lockme/wayland_shim.h".}
-proc sessionLockGetSurface(lock: ptr ExtSessionLock; surface: ptr WlSurface; output: ptr WlOutput): ptr ExtSessionLockSurface {.importc: "lockme_ext_session_lock_v1_get_lock_surface", header: "lockme/wayland_shim.h".}
-proc lockSurfaceDestroy(surface: ptr ExtSessionLockSurface) {.importc: "lockme_ext_session_lock_surface_v1_destroy", header: "lockme/wayland_shim.h".}
-proc lockSurfaceAckConfigure(surface: ptr ExtSessionLockSurface; serial: uint32) {.importc: "lockme_ext_session_lock_surface_v1_ack_configure", header: "lockme/wayland_shim.h".}
-proc pixelCreateBuffer(manager: ptr WpSinglePixelBufferManager; r, g, b, a: uint32): ptr WlBuffer {.importc: "lockme_wp_single_pixel_buffer_manager_v1_create_u32_rgba_buffer", header: "lockme/wayland_shim.h".}
-proc pixelManagerDestroy(manager: ptr WpSinglePixelBufferManager) {.importc: "lockme_wp_single_pixel_buffer_manager_v1_destroy", header: "lockme/wayland_shim.h".}
-proc viewporterGetViewport(viewporter: ptr WpViewporter; surface: ptr WlSurface): ptr WpViewport {.importc: "lockme_wp_viewporter_get_viewport", header: "lockme/wayland_shim.h".}
-proc viewporterDestroy(viewporter: ptr WpViewporter) {.importc: "lockme_wp_viewporter_destroy", header: "lockme/wayland_shim.h".}
-proc viewportDestroy(viewport: ptr WpViewport) {.importc: "lockme_wp_viewport_destroy", header: "lockme/wayland_shim.h".}
-proc viewportSetDestination(viewport: ptr WpViewport; width, height: int32) {.importc: "lockme_wp_viewport_set_destination", header: "lockme/wayland_shim.h".}
+proc wl_display_roundtrip(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
 
-proc xkb_context_new(flags: cint): ptr XkbContext {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc xkb_context_unref(context: ptr XkbContext) {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc xkb_keymap_new_from_buffer(context: ptr XkbContext; buffer: cstring; length: csize_t; format, flags: cint): ptr XkbKeymap {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc xkb_keymap_unref(keymap: ptr XkbKeymap) {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc xkb_state_new(keymap: ptr XkbKeymap): ptr XkbState {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc xkb_state_ref(state: ptr XkbState): ptr XkbState {.importc, header: "<xkbcommon/xkbcommon.h>".}
+proc wl_display_dispatch_pending(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
+
+proc wl_display_prepare_read(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
+
+proc wl_display_cancel_read(
+  display: ptr WlDisplay
+) {.importc, header: "<wayland-client.h>".}
+
+proc wl_display_read_events(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
+
+proc wl_display_flush(
+  display: ptr WlDisplay
+): cint {.importc, header: "<wayland-client.h>".}
+
+proc wl_registry_destroy(
+  registry: ptr WlRegistry
+) {.importc, header: "<wayland-client-protocol.h>".}
+
+proc wl_registry_add_listener(
+  registry: ptr WlRegistry, listener: pointer, data: pointer
+): cint {.importc: "lockme_wl_registry_add_listener", header: "lockme/wayland_shim.h".}
+
+proc wl_seat_add_listener(
+  seat: ptr WlSeat, listener: pointer, data: pointer
+): cint {.importc: "lockme_wl_seat_add_listener", header: "lockme/wayland_shim.h".}
+
+proc wl_pointer_add_listener(
+  pointer: ptr WlPointer, listener: pointer, data: pointer
+): cint {.importc: "lockme_wl_pointer_add_listener", header: "lockme/wayland_shim.h".}
+
+proc wl_keyboard_add_listener(
+  keyboard: ptr WlKeyboard, listener: pointer, data: pointer
+): cint {.importc: "lockme_wl_keyboard_add_listener", header: "lockme/wayland_shim.h".}
+
+proc wl_buffer_add_listener(
+  buffer: ptr WlBuffer, listener: pointer, data: pointer
+): cint {.importc: "lockme_wl_buffer_add_listener", header: "lockme/wayland_shim.h".}
+
+proc ext_session_lock_v1_add_listener(
+  lock: ptr ExtSessionLock, listener: pointer, data: pointer
+): cint {.
+  importc: "lockme_ext_session_lock_v1_add_listener", header: "lockme/wayland_shim.h"
+.}
+
+proc ext_session_lock_surface_v1_add_listener(
+  surface: ptr ExtSessionLockSurface, listener: pointer, data: pointer
+): cint {.
+  importc: "lockme_ext_session_lock_surface_v1_add_listener",
+  header: "lockme/wayland_shim.h"
+.}
+
+proc ifaceNameWlCompositor(): cstring {.
+  importc: "lockme_iface_name_wl_compositor", header: "lockme/wayland_shim.h"
+.}
+
+proc ifaceNameWlOutput(): cstring {.
+  importc: "lockme_iface_name_wl_output", header: "lockme/wayland_shim.h"
+.}
+
+proc ifaceNameWlSeat(): cstring {.
+  importc: "lockme_iface_name_wl_seat", header: "lockme/wayland_shim.h"
+.}
+
+proc ifaceNameWlShm(): cstring {.
+  importc: "lockme_iface_name_wl_shm", header: "lockme/wayland_shim.h"
+.}
+
+proc ifaceNameLockManager(): cstring {.
+  importc: "lockme_iface_name_ext_session_lock_manager_v1",
+  header: "lockme/wayland_shim.h"
+.}
+
+proc ifaceNameViewporter(): cstring {.
+  importc: "lockme_iface_name_wp_viewporter", header: "lockme/wayland_shim.h"
+.}
+
+proc ifaceNamePixelManager(): cstring {.
+  importc: "lockme_iface_name_wp_single_pixel_buffer_manager_v1",
+  header: "lockme/wayland_shim.h"
+.}
+
+proc bindWlCompositor(
+  registry: ptr WlRegistry, name, version: uint32
+): ptr WlCompositor {.
+  importc: "lockme_registry_bind_wl_compositor", header: "lockme/wayland_shim.h"
+.}
+
+proc bindWlOutput(
+  registry: ptr WlRegistry, name, version: uint32
+): ptr WlOutput {.
+  importc: "lockme_registry_bind_wl_output", header: "lockme/wayland_shim.h"
+.}
+
+proc bindWlSeat(
+  registry: ptr WlRegistry, name, version: uint32
+): ptr WlSeat {.
+  importc: "lockme_registry_bind_wl_seat", header: "lockme/wayland_shim.h"
+.}
+
+proc bindWlShm(
+  registry: ptr WlRegistry, name, version: uint32
+): ptr WlShm {.importc: "lockme_registry_bind_wl_shm", header: "lockme/wayland_shim.h".}
+
+proc bindLockManager(
+  registry: ptr WlRegistry, name, version: uint32
+): ptr ExtSessionLockManager {.
+  importc: "lockme_registry_bind_ext_session_lock_manager_v1",
+  header: "lockme/wayland_shim.h"
+.}
+
+proc bindViewporter(
+  registry: ptr WlRegistry, name, version: uint32
+): ptr WpViewporter {.
+  importc: "lockme_registry_bind_wp_viewporter", header: "lockme/wayland_shim.h"
+.}
+
+proc bindPixelManager(
+  registry: ptr WlRegistry, name, version: uint32
+): ptr WpSinglePixelBufferManager {.
+  importc: "lockme_registry_bind_wp_single_pixel_buffer_manager_v1",
+  header: "lockme/wayland_shim.h"
+.}
+
+proc wlCreateSurface(
+  compositor: ptr WlCompositor
+): ptr WlSurface {.
+  importc: "lockme_wl_compositor_create_surface", header: "lockme/wayland_shim.h"
+.}
+
+proc wlCompositorDestroy(
+  compositor: ptr WlCompositor
+) {.importc: "lockme_wl_compositor_destroy", header: "lockme/wayland_shim.h".}
+
+proc wlSurfaceDestroy(
+  surface: ptr WlSurface
+) {.importc: "lockme_wl_surface_destroy", header: "lockme/wayland_shim.h".}
+
+proc wlSurfaceAttach(
+  surface: ptr WlSurface, buffer: ptr WlBuffer, x, y: int32
+) {.importc: "lockme_wl_surface_attach", header: "lockme/wayland_shim.h".}
+
+proc wlSurfaceDamageBuffer(
+  surface: ptr WlSurface, x, y, width, height: int32
+) {.importc: "lockme_wl_surface_damage_buffer", header: "lockme/wayland_shim.h".}
+
+proc wlSurfaceCommit(
+  surface: ptr WlSurface
+) {.importc: "lockme_wl_surface_commit", header: "lockme/wayland_shim.h".}
+
+proc wlBufferDestroy(
+  buffer: ptr WlBuffer
+) {.importc: "lockme_wl_buffer_destroy", header: "lockme/wayland_shim.h".}
+
+proc wlOutputRelease(
+  output: ptr WlOutput
+) {.importc: "lockme_wl_output_release", header: "lockme/wayland_shim.h".}
+
+proc wlShmCreatePool(
+  shm: ptr WlShm, fd, size: int32
+): ptr WlShmPool {.
+  importc: "lockme_wl_shm_create_pool", header: "lockme/wayland_shim.h"
+.}
+
+proc wlShmDestroy(
+  shm: ptr WlShm
+) {.importc: "lockme_wl_shm_destroy", header: "lockme/wayland_shim.h".}
+
+proc wlShmPoolCreateBuffer(
+  pool: ptr WlShmPool, offset, width, height, stride: int32, format: uint32
+): ptr WlBuffer {.
+  importc: "lockme_wl_shm_pool_create_buffer", header: "lockme/wayland_shim.h"
+.}
+
+proc wlShmPoolDestroy(
+  pool: ptr WlShmPool
+) {.importc: "lockme_wl_shm_pool_destroy", header: "lockme/wayland_shim.h".}
+
+proc wlSeatGetPointer(
+  seat: ptr WlSeat
+): ptr WlPointer {.
+  importc: "lockme_wl_seat_get_pointer", header: "lockme/wayland_shim.h"
+.}
+
+proc wlSeatGetKeyboard(
+  seat: ptr WlSeat
+): ptr WlKeyboard {.
+  importc: "lockme_wl_seat_get_keyboard", header: "lockme/wayland_shim.h"
+.}
+
+proc wlSeatRelease(
+  seat: ptr WlSeat
+) {.importc: "lockme_wl_seat_release", header: "lockme/wayland_shim.h".}
+
+proc wlPointerRelease(
+  pointer: ptr WlPointer
+) {.importc: "lockme_wl_pointer_release", header: "lockme/wayland_shim.h".}
+
+proc wlPointerSetCursor(
+  pointer: ptr WlPointer, serial: uint32, surface: ptr WlSurface, x, y: int32
+) {.importc: "lockme_wl_pointer_set_cursor", header: "lockme/wayland_shim.h".}
+
+proc wlKeyboardRelease(
+  keyboard: ptr WlKeyboard
+) {.importc: "lockme_wl_keyboard_release", header: "lockme/wayland_shim.h".}
+
+proc lockManagerLock(
+  manager: ptr ExtSessionLockManager
+): ptr ExtSessionLock {.
+  importc: "lockme_ext_session_lock_manager_v1_lock", header: "lockme/wayland_shim.h"
+.}
+
+proc lockManagerDestroy(
+  manager: ptr ExtSessionLockManager
+) {.
+  importc: "lockme_ext_session_lock_manager_v1_destroy", header: "lockme/wayland_shim.h"
+.}
+
+proc sessionLockDestroy(
+  lock: ptr ExtSessionLock
+) {.importc: "lockme_ext_session_lock_v1_destroy", header: "lockme/wayland_shim.h".}
+
+proc sessionLockUnlockAndDestroy(
+  lock: ptr ExtSessionLock
+) {.
+  importc: "lockme_ext_session_lock_v1_unlock_and_destroy",
+  header: "lockme/wayland_shim.h"
+.}
+
+proc sessionLockGetSurface(
+  lock: ptr ExtSessionLock, surface: ptr WlSurface, output: ptr WlOutput
+): ptr ExtSessionLockSurface {.
+  importc: "lockme_ext_session_lock_v1_get_lock_surface",
+  header: "lockme/wayland_shim.h"
+.}
+
+proc lockSurfaceDestroy(
+  surface: ptr ExtSessionLockSurface
+) {.
+  importc: "lockme_ext_session_lock_surface_v1_destroy", header: "lockme/wayland_shim.h"
+.}
+
+proc lockSurfaceAckConfigure(
+  surface: ptr ExtSessionLockSurface, serial: uint32
+) {.
+  importc: "lockme_ext_session_lock_surface_v1_ack_configure",
+  header: "lockme/wayland_shim.h"
+.}
+
+proc pixelCreateBuffer(
+  manager: ptr WpSinglePixelBufferManager, r, g, b, a: uint32
+): ptr WlBuffer {.
+  importc: "lockme_wp_single_pixel_buffer_manager_v1_create_u32_rgba_buffer",
+  header: "lockme/wayland_shim.h"
+.}
+
+proc pixelManagerDestroy(
+  manager: ptr WpSinglePixelBufferManager
+) {.
+  importc: "lockme_wp_single_pixel_buffer_manager_v1_destroy",
+  header: "lockme/wayland_shim.h"
+.}
+
+proc viewporterGetViewport(
+  viewporter: ptr WpViewporter, surface: ptr WlSurface
+): ptr WpViewport {.
+  importc: "lockme_wp_viewporter_get_viewport", header: "lockme/wayland_shim.h"
+.}
+
+proc viewporterDestroy(
+  viewporter: ptr WpViewporter
+) {.importc: "lockme_wp_viewporter_destroy", header: "lockme/wayland_shim.h".}
+
+proc viewportDestroy(
+  viewport: ptr WpViewport
+) {.importc: "lockme_wp_viewport_destroy", header: "lockme/wayland_shim.h".}
+
+proc viewportSetDestination(
+  viewport: ptr WpViewport, width, height: int32
+) {.importc: "lockme_wp_viewport_set_destination", header: "lockme/wayland_shim.h".}
+
+proc xkb_context_new(
+  flags: cint
+): ptr XkbContext {.importc, header: "<xkbcommon/xkbcommon.h>".}
+
+proc xkb_context_unref(
+  context: ptr XkbContext
+) {.importc, header: "<xkbcommon/xkbcommon.h>".}
+
+proc xkb_keymap_new_from_buffer(
+  context: ptr XkbContext, buffer: cstring, length: csize_t, format, flags: cint
+): ptr XkbKeymap {.importc, header: "<xkbcommon/xkbcommon.h>".}
+
+proc xkb_keymap_unref(
+  keymap: ptr XkbKeymap
+) {.importc, header: "<xkbcommon/xkbcommon.h>".}
+
+proc xkb_state_new(
+  keymap: ptr XkbKeymap
+): ptr XkbState {.importc, header: "<xkbcommon/xkbcommon.h>".}
+
+proc xkb_state_ref(
+  state: ptr XkbState
+): ptr XkbState {.importc, header: "<xkbcommon/xkbcommon.h>".}
+
 proc xkb_state_unref(state: ptr XkbState) {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc xkb_state_update_mask(state: ptr XkbState; depressed, latched, locked, depressedLayout, latchedLayout, lockedLayout: uint32): cint {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc xkb_state_key_get_one_sym(state: ptr XkbState; keycode: uint32): uint32 {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc xkb_state_key_get_utf8(state: ptr XkbState; keycode: uint32; buffer: cstring; size: csize_t): cint {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc xkb_state_mod_name_is_active(state: ptr XkbState; name: cstring; kind: cint): cint {.importc, header: "<xkbcommon/xkbcommon.h>".}
-proc memfd_create(name: cstring; flags: cuint): cint {.importc, header: "<sys/mman.h>".}
-proc signalfd(fd: cint; mask: var Sigset; flags: cint): cint {.importc, header: "<sys/signalfd.h>".}
-proc prctl(option: cint; arg2, arg3, arg4, arg5: culong): cint
-  {.importc, header: "<sys/prctl.h>", varargs.}
-proc explicit_bzero(p: pointer; n: csize_t) {.importc, header: "<string.h>".}
+proc xkb_state_update_mask(
+  state: ptr XkbState,
+  depressed, latched, locked, depressedLayout, latchedLayout, lockedLayout: uint32,
+): cint {.importc, header: "<xkbcommon/xkbcommon.h>".}
+
+proc xkb_state_key_get_one_sym(
+  state: ptr XkbState, keycode: uint32
+): uint32 {.importc, header: "<xkbcommon/xkbcommon.h>".}
+
+proc xkb_state_key_get_utf8(
+  state: ptr XkbState, keycode: uint32, buffer: cstring, size: csize_t
+): cint {.importc, header: "<xkbcommon/xkbcommon.h>".}
+
+proc xkb_state_mod_name_is_active(
+  state: ptr XkbState, name: cstring, kind: cint
+): cint {.importc, header: "<xkbcommon/xkbcommon.h>".}
+
+proc memfd_create(name: cstring, flags: cuint): cint {.importc, header: "<sys/mman.h>".}
+proc signalfd(
+  fd: cint, mask: var Sigset, flags: cint
+): cint {.importc, header: "<sys/signalfd.h>".}
+
+proc prctl(
+  option: cint, arg2, arg3, arg4, arg5: culong
+): cint {.importc, header: "<sys/prctl.h>", varargs.}
+
+proc explicit_bzero(p: pointer, n: csize_t) {.importc, header: "<string.h>".}
 proc strerror(errnum: cint): cstring {.importc, header: "<string.h>".}
 proc mlockall(flags: cint): cint {.importc, header: "<sys/mman.h>".}
-proc setrlimit(resource: cint; rlim: ptr RLimit): cint {.importc, header: "<sys/resource.h>".}
-proc getrlimit(resource: cint; rlim: ptr RLimit): cint {.importc, header: "<sys/resource.h>".}
+proc setrlimit(
+  resource: cint, rlim: ptr RLimit
+): cint {.importc, header: "<sys/resource.h>".}
+
+proc getrlimit(
+  resource: cint, rlim: ptr RLimit
+): cint {.importc, header: "<sys/resource.h>".}
 
 const
   PrSetDumpable = 4.cint
   PrSetNoNewPrivs = 38.cint
   MclCurrent = 1.cint
   MclFuture = 2.cint
-  RlimitCoreId = 4.cint  # Linux: RLIMIT_CORE
-  RlimitMemlockId = 8.cint  # Linux: RLIMIT_MEMLOCK
+  RlimitCoreId = 4.cint # Linux: RLIMIT_CORE
+  RlimitMemlockId = 8.cint # Linux: RLIMIT_MEMLOCK
   WlShmFormatXrgb8888 = 1'u32
 
 var
@@ -285,35 +694,44 @@ var
 proc fatal(message: string) {.noreturn.} =
   quit("lockme: " & message, 1)
 
-proc logEnabled(lock: Lock; level: LogLevel): bool =
+proc logEnabled(lock: Lock, level: LogLevel): bool =
   ord(lock.opts.logLevel) >= ord(level)
 
-proc logMessage(lock: Lock; level: LogLevel; message: string) =
+proc logMessage(lock: Lock, level: LogLevel, message: string) =
   if lock.logEnabled(level):
     stderr.writeLine("lockme: " & message)
 
-proc logMatrixFailure(output: Output; message: string) =
+proc logMatrixFailure(output: Output, message: string) =
   let lock = output.lock
   if not lock.blankActive or lock.logEnabled(llWarning):
     stderr.writeLine("lockme: warning: matrix output " & $output.name & ": " & message)
 
 proc matrixSurfaceRenderable(output: Output): bool =
-  output.configured and not output.surface.isNil and output.width > 0 and output.height > 0
+  output.configured and not output.surface.isNil and output.width > 0 and
+    output.height > 0
 
-proc rgba16(value: uint32; shift: int): uint32 =
+proc rgba16(value: uint32, shift: int): uint32 =
   let component = (value shr shift) and 0xff'u32
   component * (0xffffffff'u32 div 0xff'u32)
 
-proc bufferIndex(lock: Lock; color: ColorState): int =
+proc bufferIndex(lock: Lock, color: ColorState): int =
   ## Buffer layout: [init, fail, input0, input1, ...].
   case color.kind
-  of ckInit: 0
-  of ckFail: 1
-  of ckInput: 2 + color.inputIdx
+  of ckInit:
+    0
+  of ckFail:
+    1
+  of ckInput:
+    2 + color.inputIdx
 
-proc initState(): ColorState = ColorState(kind: ckInit, inputIdx: 0)
-proc failState(): ColorState = ColorState(kind: ckFail, inputIdx: 0)
-proc inputState(idx: int): ColorState = ColorState(kind: ckInput, inputIdx: idx)
+proc initState(): ColorState =
+  ColorState(kind: ckInit, inputIdx: 0)
+
+proc failState(): ColorState =
+  ColorState(kind: ckFail, inputIdx: 0)
+
+proc inputState(idx: int): ColorState =
+  ColorState(kind: ckInput, inputIdx: idx)
 
 proc nextInputState(lock: Lock): ColorState =
   ## Rotate through the input palette. Wraps after the last entry.
@@ -321,14 +739,16 @@ proc nextInputState(lock: Lock): ColorState =
   if n <= 0:
     return initState()
   let nextIdx =
-    if lock.color.kind == ckInput: (lock.color.inputIdx + 1) mod n
-    else: 0
+    if lock.color.kind == ckInput:
+      (lock.color.inputIdx + 1) mod n
+    else:
+      0
   inputState(nextIdx)
 
 proc wantsMatrix(lock: Lock): bool =
   not lock.blankActive and lock.color.kind == ckInit and lock.password.len == 0
 
-proc destroyMatrixBuffers(output: Output; resetGpuUnavailable = true)
+proc destroyMatrixBuffers(output: Output, resetGpuUnavailable = true)
 
 proc sameMatrixScale(a, b: float): bool =
   abs(a - b) < 0.001
@@ -357,7 +777,7 @@ proc ensureMatrixRenderer(lock: Lock): bool =
   lock.matrixAtlas = buildMatrixGlyphAtlas(lock.matrixRenderer)
   true
 
-proc destroyMatrixBuffers(output: Output; resetGpuUnavailable = true) =
+proc destroyMatrixBuffers(output: Output, resetGpuUnavailable = true) =
   if not output.matrixGpu.isNil:
     output.matrixGpu.close()
     output.matrixGpu = nil
@@ -386,7 +806,7 @@ proc createMatrixGpu(output: Output): bool =
       cast[pointer](output.surface),
       int(output.width),
       int(output.height),
-      lock.matrixAtlas
+      lock.matrixAtlas,
     )
     if output.matrixGpu.isNil:
       output.logMatrixFailure("GPU renderer unavailable: " & matrixGpuLastError())
@@ -399,7 +819,7 @@ proc createMatrixGpu(output: Output): bool =
     return false
   true
 
-proc createMatrixShmBuffers(output: Output; allowGpu = true) =
+proc createMatrixShmBuffers(output: Output, allowGpu = true) =
   let lock = output.lock
   output.destroyMatrixBuffers(resetGpuUnavailable = allowGpu)
   if lock.blankActive or not output.matrixSurfaceRenderable():
@@ -426,22 +846,24 @@ proc createMatrixShmBuffers(output: Output; allowGpu = true) =
   let bufHeight = geometry.height
 
   if lock.logEnabled(llDebug):
-    lock.logMessage(llDebug, "matrix output " & $output.name &
-      ": surface=" & $output.width & "x" & $output.height &
-      " render=" & $bufWidth & "x" & $bufHeight &
-      " cells=" & $cols & "x" & $rows &
-      " renderer=cpu-alpha" &
-      " scale=" & $geometry.scale)
+    lock.logMessage(
+      llDebug,
+      "matrix output " & $output.name & ": surface=" & $output.width & "x" &
+        $output.height & " render=" & $bufWidth & "x" & $bufHeight & " cells=" & $cols &
+        "x" & $rows & " renderer=cpu-alpha" & " scale=" & $geometry.scale,
+    )
 
   if bufWidth <= 0 or bufHeight <= 0:
-    output.logMatrixFailure("surface too small for matrix cells at scale " & $geometry.scale)
+    output.logMatrixFailure(
+      "surface too small for matrix cells at scale " & $geometry.scale
+    )
     return
 
   let layout = matrixShmBufferLayout(bufWidth, bufHeight)
   if not layout.valid:
     output.logMatrixFailure(
-      "render buffer too large: " & $bufWidth & "x" & $bufHeight &
-      " (max " & $MatrixShmMaxDimension & "x" & $MatrixShmMaxDimension & ")"
+      "render buffer too large: " & $bufWidth & "x" & $bufHeight & " (max " &
+        $MatrixShmMaxDimension & "x" & $MatrixShmMaxDimension & ")"
     )
     return
   let size = layout.size
@@ -475,7 +897,9 @@ proc createMatrixShmBuffers(output: Output; allowGpu = true) =
       output.logMatrixFailure("wl_shm pool creation failed")
       return
 
-    let wlbuf = wlShmPoolCreateBuffer(pool, 0, bufWidth.int32, bufHeight.int32, stride.int32, WlShmFormatXrgb8888)
+    let wlbuf = wlShmPoolCreateBuffer(
+      pool, 0, bufWidth.int32, bufHeight.int32, stride.int32, WlShmFormatXrgb8888
+    )
     wlShmPoolDestroy(pool)
     if wlbuf.isNil:
       discard munmap(mapped, size)
@@ -490,17 +914,22 @@ proc createMatrixShmBuffers(output: Output; allowGpu = true) =
       height: bufHeight,
       size: size,
       scale: geometry.scale,
-      busy: false
+      busy: false,
     )
-    discard wl_buffer_add_listener(buf.buffer, cast[pointer](addr bufferListener), cast[pointer](buf))
+    discard wl_buffer_add_listener(
+      buf.buffer, cast[pointer](addr bufferListener), cast[pointer](buf)
+    )
 
   output.matrixRain = initMatrixRain(cols, rows)
   output.matrixNextBuffer = 0
   if lock.logEnabled(llDebug):
-    lock.logMessage(llDebug, "matrix output " & $output.name &
-      ": allocated " & $output.matrixBuffers.len & " buffers of " & $size & " bytes")
+    lock.logMessage(
+      llDebug,
+      "matrix output " & $output.name & ": allocated " & $output.matrixBuffers.len &
+        " buffers of " & $size & " bytes",
+    )
 
-proc attachBuffer(output: Output; buffer: ptr WlBuffer) =
+proc attachBuffer(output: Output, buffer: ptr WlBuffer) =
   if buffer.isNil or not output.configured or output.surface.isNil:
     return
   wlSurfaceAttach(output.surface, buffer, 0, 0)
@@ -508,7 +937,7 @@ proc attachBuffer(output: Output; buffer: ptr WlBuffer) =
   viewportSetDestination(output.viewport, output.width, output.height)
   wlSurfaceCommit(output.surface)
 
-proc attachColor(output: Output; color: ColorState) =
+proc attachColor(output: Output, color: ColorState) =
   let idx = output.lock.bufferIndex(color)
   output.attachBuffer(output.lock.buffers[idx])
 
@@ -518,7 +947,7 @@ proc hasMatrixBuffers(output: Output): bool =
       return true
   false
 
-proc matrixNowMs(lock: Lock; now: MonoTime): int64
+proc matrixNowMs(lock: Lock, now: MonoTime): int64
 
 proc attachMatrixFrame(output: Output): bool =
   if not output.matrixSurfaceRenderable():
@@ -532,10 +961,13 @@ proc attachMatrixFrame(output: Output): bool =
       output.lock.opts.matrixFallSpeed,
       output.lock.opts.matrixCycleSpeed,
       output.lock.opts.matrixRaindropLength,
-      output.lock.opts.matrixBrightnessDecay
+      output.lock.opts.matrixBrightnessDecay,
     ):
       return true
-    output.logMatrixFailure("GPU renderer failed during render; using CPU renderer fallback: " & matrixGpuLastError())
+    output.logMatrixFailure(
+      "GPU renderer failed during render; using CPU renderer fallback: " &
+        matrixGpuLastError()
+    )
     output.matrixGpu.close()
     output.matrixGpu = nil
     output.matrixGpuUnavailable = true
@@ -550,7 +982,13 @@ proc attachMatrixFrame(output: Output): bool =
       continue
     if output.matrixBuffers[idx].busy:
       continue
-    renderMatrix(output.matrixRain, output.lock.matrixRenderer, output.matrixBuffers[idx].data, output.matrixBuffers[idx].width, output.matrixBuffers[idx].height)
+    renderMatrix(
+      output.matrixRain,
+      output.lock.matrixRenderer,
+      output.matrixBuffers[idx].data,
+      output.matrixBuffers[idx].width,
+      output.matrixBuffers[idx].height,
+    )
     output.attachBuffer(output.matrixBuffers[idx].buffer)
     output.matrixBuffers[idx].busy = true
     output.matrixNextBuffer = (idx + 1) mod output.matrixBuffers.len
@@ -566,7 +1004,7 @@ proc presentOutput(output: Output) =
     output.logMatrixFailure("no matrix buffer available; using init color fallback")
   output.attachColor(output.lock.color)
 
-proc setColor(lock: Lock; color: ColorState) =
+proc setColor(lock: Lock, color: ColorState) =
   if lock.color == color:
     return
   if color.kind != ckFail:
@@ -597,27 +1035,37 @@ proc failReturnTimeout(now, deadline: MonoTime): cint =
   if deadline <= now:
     return 0.cint
   let ms = (deadline - now).inMilliseconds
-  if ms > int64(high(cint)): high(cint) else: cint(ms)
+  if ms > int64(high(cint)):
+    high(cint)
+  else:
+    cint(ms)
 
-proc idleBlankTimeout(opts: Options; lastInputAt, now: MonoTime): cint =
+proc idleBlankTimeout(opts: Options, lastInputAt, now: MonoTime): cint =
   if opts.idleTimeoutSecs <= 0:
     return -1.cint
   let deadline = lastInputAt + initDuration(seconds = opts.idleTimeoutSecs)
   if deadline <= now:
     return 0.cint
   let ms = (deadline - now).inMilliseconds
-  if ms > int64(high(cint)): high(cint) else: cint(ms)
+  if ms > int64(high(cint)):
+    high(cint)
+  else:
+    cint(ms)
 
-proc matrixNowMs(lock: Lock; now: MonoTime): int64 =
+proc matrixNowMs(lock: Lock, now: MonoTime): int64 =
   if lock.matrixClockStart.ticks == 0:
     return 0
   (now - lock.matrixClockStart).inMilliseconds
 
 proc combinePollTimeout(a, b: cint): cint =
-  if a < 0: b
-  elif b < 0: a
-  elif a < b: a
-  else: b
+  if a < 0:
+    b
+  elif b < 0:
+    a
+  elif a < b:
+    a
+  else:
+    b
 
 proc rlimitMemlockSummary(): string =
   var limit: RLimit
@@ -625,9 +1073,9 @@ proc rlimitMemlockSummary(): string =
     return "unknown"
   "soft=" & $limit.rlim_cur & " hard=" & $limit.rlim_max & " bytes"
 
-proc mlockallFailureMessage(flags: cint; err: cint): string =
-  "mlockall(flags=" & $flags & ") failed: " & $strerror(err) &
-    " (RLIMIT_MEMLOCK " & rlimitMemlockSummary() &
+proc mlockallFailureMessage(flags: cint, err: cint): string =
+  "mlockall(flags=" & $flags & ") failed: " & $strerror(err) & " (RLIMIT_MEMLOCK " &
+    rlimitMemlockSummary() &
     "); transient parent-process password material may be paged to swap, but the dedicated password buffer remains mlock'd"
 
 proc makeSignalFd(): cint =
@@ -659,8 +1107,9 @@ proc drainSignalFd(lock: Lock): bool =
     let rc = read(lock.signalFd, addr info[0], info.len)
     if rc == info.len:
       result = true
-      let signo = uint32(info[0]) or (uint32(info[1]) shl 8) or
-        (uint32(info[2]) shl 16) or (uint32(info[3]) shl 24)
+      let signo =
+        uint32(info[0]) or (uint32(info[1]) shl 8) or (uint32(info[2]) shl 16) or
+        (uint32(info[3]) shl 24)
       lock.logMessage(llDebug, "received " & signalName(signo) & "; exiting")
     elif rc < 0 and errno == EINTR:
       continue
@@ -672,10 +1121,13 @@ proc createOutputSurface(output: Output) =
   output.surface = wlCreateSurface(lock.compositor)
   if output.surface.isNil:
     fatal("failed to create wl_surface")
-  output.lockSurface = sessionLockGetSurface(lock.sessionLock, output.surface, output.wlOutput)
+  output.lockSurface =
+    sessionLockGetSurface(lock.sessionLock, output.surface, output.wlOutput)
   if output.lockSurface.isNil:
     fatal("failed to create session lock surface")
-  discard ext_session_lock_surface_v1_add_listener(output.lockSurface, cast[pointer](addr lockSurfaceListener), cast[pointer](output))
+  discard ext_session_lock_surface_v1_add_listener(
+    output.lockSurface, cast[pointer](addr lockSurfaceListener), cast[pointer](output)
+  )
   output.viewport = viewporterGetViewport(lock.viewporter, output.surface)
   if output.viewport.isNil:
     fatal("failed to create viewport")
@@ -701,16 +1153,12 @@ proc destroySeat(seat: Seat) =
   if not seat.wlSeat.isNil:
     wlSeatRelease(seat.wlSeat)
 
-proc createSolidPixelBuffer(lock: Lock; rgb: uint32): ptr WlBuffer =
+proc createSolidPixelBuffer(lock: Lock, rgb: uint32): ptr WlBuffer =
   pixelCreateBuffer(
-    lock.pixelManager,
-    rgba16(rgb, 16),
-    rgba16(rgb, 8),
-    rgba16(rgb, 0),
-    0xffffffff'u32
+    lock.pixelManager, rgba16(rgb, 16), rgba16(rgb, 8), rgba16(rgb, 0), 0xffffffff'u32
   )
 
-proc createSolidShmBuffer(lock: Lock; rgb: uint32): ptr WlBuffer =
+proc createSolidShmBuffer(lock: Lock, rgb: uint32): ptr WlBuffer =
   let fd = memfd_create("lockme-color".cstring, 0)
   if fd < 0:
     fatal("failed to create shm buffer fd")
@@ -730,7 +1178,7 @@ proc createSolidShmBuffer(lock: Lock; rgb: uint32): ptr WlBuffer =
   result = wlShmPoolCreateBuffer(pool, 0, 1, 1, 4, WlShmFormatXrgb8888)
   wlShmPoolDestroy(pool)
 
-proc createBuffer(lock: Lock; rgb: uint32): ptr WlBuffer =
+proc createBuffer(lock: Lock, rgb: uint32): ptr WlBuffer =
   if not lock.pixelManager.isNil:
     return lock.createSolidPixelBuffer(rgb)
   lock.createSolidShmBuffer(rgb)
@@ -746,7 +1194,13 @@ proc createBuffers(lock: Lock) =
     if buf.isNil:
       fatal("failed to create color buffer")
 
-proc registryGlobal(data: pointer; registry: ptr WlRegistry; name: uint32; iface: cstring; version: uint32) {.cdecl.} =
+proc registryGlobal(
+    data: pointer,
+    registry: ptr WlRegistry,
+    name: uint32,
+    iface: cstring,
+    version: uint32,
+) {.cdecl.} =
   let lock = cast[Lock](data)
   let ifaceName = $iface
 
@@ -757,7 +1211,8 @@ proc registryGlobal(data: pointer; registry: ptr WlRegistry; name: uint32; iface
   elif ifaceName == $ifaceNameWlOutput():
     if version < 3:
       fatal("wl_output version 3 is required")
-    let output = Output(lock: lock, name: name, wlOutput: bindWlOutput(registry, name, 3))
+    let output =
+      Output(lock: lock, name: name, wlOutput: bindWlOutput(registry, name, 3))
     lock.outputs.add(output)
     if lock.state in {lsLocking, lsLocked}:
       output.createOutputSurface()
@@ -766,7 +1221,9 @@ proc registryGlobal(data: pointer; registry: ptr WlRegistry; name: uint32; iface
       fatal("wl_seat version 5 is required")
     let seat = Seat(lock: lock, name: name, wlSeat: bindWlSeat(registry, name, 5))
     lock.seats.add(seat)
-    discard wl_seat_add_listener(seat.wlSeat, cast[pointer](addr seatListener), cast[pointer](seat))
+    discard wl_seat_add_listener(
+      seat.wlSeat, cast[pointer](addr seatListener), cast[pointer](seat)
+    )
   elif ifaceName == $ifaceNameWlShm():
     lock.shm = bindWlShm(registry, name, 1)
   elif ifaceName == $ifaceNameLockManager():
@@ -776,7 +1233,9 @@ proc registryGlobal(data: pointer; registry: ptr WlRegistry; name: uint32; iface
   elif ifaceName == $ifaceNamePixelManager():
     lock.pixelManager = bindPixelManager(registry, name, 1)
 
-proc registryGlobalRemove(data: pointer; registry: ptr WlRegistry; name: uint32) {.cdecl.} =
+proc registryGlobalRemove(
+    data: pointer, registry: ptr WlRegistry, name: uint32
+) {.cdecl.} =
   let lock = cast[Lock](data)
   for i, output in lock.outputs:
     if output.name == name:
@@ -789,32 +1248,78 @@ proc registryGlobalRemove(data: pointer; registry: ptr WlRegistry; name: uint32)
       lock.seats.delete(i)
       return
 
-proc seatName(data: pointer; seat: ptr WlSeat; name: cstring) {.cdecl.} =
+proc seatName(data: pointer, seat: ptr WlSeat, name: cstring) {.cdecl.} =
   discard
 
-proc pointerEnter(data: pointer; pointer: ptr WlPointer; serial: uint32; surface: ptr WlSurface; x, y: int32) {.cdecl.} =
+proc pointerEnter(
+    data: pointer,
+    pointer: ptr WlPointer,
+    serial: uint32,
+    surface: ptr WlSurface,
+    x, y: int32,
+) {.cdecl.} =
   wlPointerSetCursor(pointer, serial, nil, 0, 0)
 
-proc bufferRelease(data: pointer; buffer: ptr WlBuffer) {.cdecl.} =
+proc bufferRelease(data: pointer, buffer: ptr WlBuffer) {.cdecl.} =
   let matrixBuffer = cast[ptr MatrixBuffer](data)
   matrixBuffer.busy = false
 
-proc pointerIgnore(data: pointer; pointer: ptr WlPointer) {.cdecl.} = discard
-proc pointerIgnoreLeave(data: pointer; pointer: ptr WlPointer; serial: uint32; surface: ptr WlSurface) {.cdecl.} = discard
-proc pointerIgnoreMotion(data: pointer; pointer: ptr WlPointer; time: uint32; x, y: int32) {.cdecl.} = discard
-proc pointerIgnoreButton(data: pointer; pointer: ptr WlPointer; serial, time, button, state: uint32) {.cdecl.} = discard
-proc pointerIgnoreAxis(data: pointer; pointer: ptr WlPointer; time, axis: uint32; value: int32) {.cdecl.} = discard
-proc pointerIgnoreAxisSource(data: pointer; pointer: ptr WlPointer; axisSource: uint32) {.cdecl.} = discard
-proc pointerIgnoreAxisStop(data: pointer; pointer: ptr WlPointer; time, axis: uint32) {.cdecl.} = discard
-proc pointerIgnoreAxisDiscrete(data: pointer; pointer: ptr WlPointer; axis: uint32; discrete: int32) {.cdecl.} = discard
-proc pointerIgnoreAxisValue120(data: pointer; pointer: ptr WlPointer; axis: uint32; value120: int32) {.cdecl.} = discard
-proc pointerIgnoreAxisRelativeDirection(data: pointer; pointer: ptr WlPointer; axis, direction: uint32) {.cdecl.} = discard
+proc pointerIgnore(data: pointer, pointer: ptr WlPointer) {.cdecl.} =
+  discard
 
-const KeymapSizeMax = 1024 * 1024  # 1 MiB sanity cap on compositor-supplied keymap
+proc pointerIgnoreLeave(
+    data: pointer, pointer: ptr WlPointer, serial: uint32, surface: ptr WlSurface
+) {.cdecl.} =
+  discard
 
-proc keyboardKeymap(data: pointer; keyboard: ptr WlKeyboard; format: uint32; fd: int32; size: uint32) {.cdecl.} =
+proc pointerIgnoreMotion(
+    data: pointer, pointer: ptr WlPointer, time: uint32, x, y: int32
+) {.cdecl.} =
+  discard
+
+proc pointerIgnoreButton(
+    data: pointer, pointer: ptr WlPointer, serial, time, button, state: uint32
+) {.cdecl.} =
+  discard
+
+proc pointerIgnoreAxis(
+    data: pointer, pointer: ptr WlPointer, time, axis: uint32, value: int32
+) {.cdecl.} =
+  discard
+
+proc pointerIgnoreAxisSource(
+    data: pointer, pointer: ptr WlPointer, axisSource: uint32
+) {.cdecl.} =
+  discard
+
+proc pointerIgnoreAxisStop(
+    data: pointer, pointer: ptr WlPointer, time, axis: uint32
+) {.cdecl.} =
+  discard
+
+proc pointerIgnoreAxisDiscrete(
+    data: pointer, pointer: ptr WlPointer, axis: uint32, discrete: int32
+) {.cdecl.} =
+  discard
+
+proc pointerIgnoreAxisValue120(
+    data: pointer, pointer: ptr WlPointer, axis: uint32, value120: int32
+) {.cdecl.} =
+  discard
+
+proc pointerIgnoreAxisRelativeDirection(
+    data: pointer, pointer: ptr WlPointer, axis, direction: uint32
+) {.cdecl.} =
+  discard
+
+const KeymapSizeMax = 1024 * 1024 # 1 MiB sanity cap on compositor-supplied keymap
+
+proc keyboardKeymap(
+    data: pointer, keyboard: ptr WlKeyboard, format: uint32, fd: int32, size: uint32
+) {.cdecl.} =
   let seat = cast[Seat](data)
-  defer: discard close(fd)
+  defer:
+    discard close(fd)
   if format != uint32(XkbKeymapFormatTextV1):
     return
   if size == 0 or size > uint32(KeymapSizeMax):
@@ -822,14 +1327,18 @@ proc keyboardKeymap(data: pointer; keyboard: ptr WlKeyboard; format: uint32; fd:
   let mapped = mmap(nil, int(size), PROT_READ, MAP_PRIVATE, cint(fd), 0)
   if mapped == cast[pointer](-1):
     return
-  defer: discard munmap(mapped, int(size))
+  defer:
+    discard munmap(mapped, int(size))
   # The Wayland protocol guarantees a trailing NUL within the mapped region,
   # so we pass `size - 1` as the length to xkb_keymap_new_from_buffer.
   let length = csize_t(size) - 1
-  let keymap = xkb_keymap_new_from_buffer(seat.lock.xkbContext, cast[cstring](mapped), length, XkbKeymapFormatTextV1, 0)
+  let keymap = xkb_keymap_new_from_buffer(
+    seat.lock.xkbContext, cast[cstring](mapped), length, XkbKeymapFormatTextV1, 0
+  )
   if keymap.isNil:
     return
-  defer: xkb_keymap_unref(keymap)
+  defer:
+    xkb_keymap_unref(keymap)
   let state = xkb_state_new(keymap)
   if state.isNil:
     return
@@ -838,17 +1347,40 @@ proc keyboardKeymap(data: pointer; keyboard: ptr WlKeyboard; format: uint32; fd:
   seat.xkbState = xkb_state_ref(state)
   xkb_state_unref(state)
 
-proc keyboardEnter(data: pointer; keyboard: ptr WlKeyboard; serial: uint32; surface: ptr WlSurface; keys: ptr WlArray) {.cdecl.} = discard
-proc keyboardLeave(data: pointer; keyboard: ptr WlKeyboard; serial: uint32; surface: ptr WlSurface) {.cdecl.} = discard
-proc keyboardRepeatInfo(data: pointer; keyboard: ptr WlKeyboard; rate, delay: int32) {.cdecl.} = discard
+proc keyboardEnter(
+    data: pointer,
+    keyboard: ptr WlKeyboard,
+    serial: uint32,
+    surface: ptr WlSurface,
+    keys: ptr WlArray,
+) {.cdecl.} =
+  discard
 
-proc keyboardModifiers(data: pointer; keyboard: ptr WlKeyboard; serial, modsDepressed, modsLatched, modsLocked, group: uint32) {.cdecl.} =
+proc keyboardLeave(
+    data: pointer, keyboard: ptr WlKeyboard, serial: uint32, surface: ptr WlSurface
+) {.cdecl.} =
+  discard
+
+proc keyboardRepeatInfo(
+    data: pointer, keyboard: ptr WlKeyboard, rate, delay: int32
+) {.cdecl.} =
+  discard
+
+proc keyboardModifiers(
+    data: pointer,
+    keyboard: ptr WlKeyboard,
+    serial, modsDepressed, modsLatched, modsLocked, group: uint32,
+) {.cdecl.} =
   let seat = cast[Seat](data)
   if not seat.xkbState.isNil:
-    discard xkb_state_update_mask(seat.xkbState, modsDepressed, modsLatched, modsLocked, 0, 0, group)
+    discard xkb_state_update_mask(
+      seat.xkbState, modsDepressed, modsLatched, modsLocked, 0, 0, group
+    )
 
-proc isModifierActive(state: ptr XkbState; name: string): bool =
-  xkb_state_mod_name_is_active(state, name.cstring, XkbStateModsDepressed or XkbStateModsLatched) == 1
+proc isModifierActive(state: ptr XkbState, name: string): bool =
+  xkb_state_mod_name_is_active(
+    state, name.cstring, XkbStateModsDepressed or XkbStateModsLatched
+  ) == 1
 
 proc submitPassword(lock: Lock) =
   if lock.state != lsLocked:
@@ -867,7 +1399,9 @@ proc devEscape(lock: Lock) =
   lock.sessionLock = nil
   lock.state = lsExiting
 
-proc keyboardKey(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, state: uint32) {.cdecl.} =
+proc keyboardKey(
+    data: pointer, keyboard: ptr WlKeyboard, serial, time, key, state: uint32
+) {.cdecl.} =
   if state != WlKeyboardKeyStatePressed:
     return
   let seat = cast[Seat](data)
@@ -905,31 +1439,40 @@ proc keyboardKey(data: pointer; keyboard: ptr WlKeyboard; serial, time, key, sta
       lock.setColor(initState())
       return
     var buffer: array[64, byte]
-    let written = xkb_state_key_get_utf8(seat.xkbState, keycode, cast[cstring](addr buffer[0]), csize_t(buffer.len))
+    let written = xkb_state_key_get_utf8(
+      seat.xkbState, keycode, cast[cstring](addr buffer[0]), csize_t(buffer.len)
+    )
     if written > 0 and int(written) < buffer.len:
       if lock.password.appendUtf8(buffer.toOpenArray(0, int(written) - 1)):
         lock.setColor(lock.nextInputState())
     explicit_bzero(addr buffer[0], csize_t(buffer.len))
   else:
     var buffer: array[64, byte]
-    let written = xkb_state_key_get_utf8(seat.xkbState, keycode, cast[cstring](addr buffer[0]), csize_t(buffer.len))
+    let written = xkb_state_key_get_utf8(
+      seat.xkbState, keycode, cast[cstring](addr buffer[0]), csize_t(buffer.len)
+    )
     if written > 0 and int(written) < buffer.len:
       if lock.password.appendUtf8(buffer.toOpenArray(0, int(written) - 1)):
         lock.setColor(lock.nextInputState())
     explicit_bzero(addr buffer[0], csize_t(buffer.len))
 
-proc seatCapabilities(data: pointer; wlSeat: ptr WlSeat; capabilities: uint32) {.cdecl.} =
+proc seatCapabilities(
+    data: pointer, wlSeat: ptr WlSeat, capabilities: uint32
+) {.cdecl.} =
   let seat = cast[Seat](data)
   if (capabilities and WlSeatCapabilityPointer) != 0 and seat.pointer.isNil:
     seat.pointer = wlSeatGetPointer(wlSeat)
-    discard wl_pointer_add_listener(seat.pointer, cast[pointer](addr pointerListener), nil)
+    discard
+      wl_pointer_add_listener(seat.pointer, cast[pointer](addr pointerListener), nil)
   elif (capabilities and WlSeatCapabilityPointer) == 0 and not seat.pointer.isNil:
     wlPointerRelease(seat.pointer)
     seat.pointer = nil
 
   if (capabilities and WlSeatCapabilityKeyboard) != 0 and seat.keyboard.isNil:
     seat.keyboard = wlSeatGetKeyboard(wlSeat)
-    discard wl_keyboard_add_listener(seat.keyboard, cast[pointer](addr keyboardListener), cast[pointer](seat))
+    discard wl_keyboard_add_listener(
+      seat.keyboard, cast[pointer](addr keyboardListener), cast[pointer](seat)
+    )
   elif (capabilities and WlSeatCapabilityKeyboard) == 0 and not seat.keyboard.isNil:
     wlKeyboardRelease(seat.keyboard)
     seat.keyboard = nil
@@ -947,7 +1490,7 @@ proc redirectStdioToDevNull() =
   if fd > 2:
     discard close(fd)
 
-proc sessionLocked(data: pointer; sessionLock: ptr ExtSessionLock) {.cdecl.} =
+proc sessionLocked(data: pointer, sessionLock: ptr ExtSessionLock) {.cdecl.} =
   let lock = cast[Lock](data)
   lock.state = lsLocked
   if lock.opts.hasReadyFd:
@@ -968,13 +1511,15 @@ proc sessionLocked(data: pointer; sessionLock: ptr ExtSessionLock) {.cdecl.} =
     # memory locks across fork.
     lock.password.protectAfterFork()
 
-proc sessionFinished(data: pointer; sessionLock: ptr ExtSessionLock) {.cdecl.} =
+proc sessionFinished(data: pointer, sessionLock: ptr ExtSessionLock) {.cdecl.} =
   let lock = cast[Lock](data)
   if lock.state == lsLocking:
     fatal("compositor denied session lock; another locker may already be running")
   lock.state = lsExiting
 
-proc lockSurfaceConfigure(data: pointer; surface: ptr ExtSessionLockSurface; serial, width, height: uint32) {.cdecl.} =
+proc lockSurfaceConfigure(
+    data: pointer, surface: ptr ExtSessionLockSurface, serial, width, height: uint32
+) {.cdecl.} =
   let output = cast[Output](data)
   output.configured = true
   output.width = int32(min(width, uint32(high(int32))))
@@ -992,20 +1537,26 @@ proc flushAndPrepareRead(lock: Lock) =
     if rc >= 0:
       return
     if errno == EAGAIN:
-      var pfd = TPollfd(fd: wl_display_get_fd(lock.display), events: POLLOUT, revents: 0)
+      var pfd =
+        TPollfd(fd: wl_display_get_fd(lock.display), events: POLLOUT, revents: 0)
       discard poll(addr pfd, Tnfds(1), -1)
     else:
       discard wl_display_read_events(lock.display)
       fatal("failed to flush Wayland connection")
 
 proc checkRequired(lock: Lock) =
-  if lock.compositor.isNil: fatal("wl_compositor not advertised")
-  if lock.lockManager.isNil: fatal("ext_session_lock_manager_v1 not advertised")
-  if lock.viewporter.isNil: fatal("wp_viewporter not advertised")
-  if lock.pixelManager.isNil and lock.shm.isNil: fatal("neither wp_single_pixel_buffer_manager_v1 nor wl_shm is advertised")
+  if lock.compositor.isNil:
+    fatal("wl_compositor not advertised")
+  if lock.lockManager.isNil:
+    fatal("ext_session_lock_manager_v1 not advertised")
+  if lock.viewporter.isNil:
+    fatal("wp_viewporter not advertised")
+  if lock.pixelManager.isNil and lock.shm.isNil:
+    fatal("neither wp_single_pixel_buffer_manager_v1 nor wl_shm is advertised")
 
 proc initListeners() =
-  registryListener = WlRegistryListener(global: registryGlobal, globalRemove: registryGlobalRemove)
+  registryListener =
+    WlRegistryListener(global: registryGlobal, globalRemove: registryGlobalRemove)
   seatListener = WlSeatListener(capabilities: seatCapabilities, name: seatName)
   pointerListener = WlPointerListener(
     enter: pointerEnter,
@@ -1018,7 +1569,7 @@ proc initListeners() =
     axisStop: pointerIgnoreAxisStop,
     axisDiscrete: pointerIgnoreAxisDiscrete,
     axisValue120: pointerIgnoreAxisValue120,
-    axisRelativeDirection: pointerIgnoreAxisRelativeDirection
+    axisRelativeDirection: pointerIgnoreAxisRelativeDirection,
   )
   bufferListener = WlBufferListener(release: bufferRelease)
   keyboardListener = WlKeyboardListener(
@@ -1027,9 +1578,10 @@ proc initListeners() =
     leave: keyboardLeave,
     key: keyboardKey,
     modifiers: keyboardModifiers,
-    repeatInfo: keyboardRepeatInfo
+    repeatInfo: keyboardRepeatInfo,
   )
-  sessionLockListener = ExtSessionLockListener(locked: sessionLocked, finished: sessionFinished)
+  sessionLockListener =
+    ExtSessionLockListener(locked: sessionLocked, finished: sessionFinished)
   lockSurfaceListener = ExtSessionLockSurfaceListener(configure: lockSurfaceConfigure)
 
 proc deinit(lock: Lock) =
@@ -1079,7 +1631,7 @@ proc connectAndDiscover(opts: Options): Lock =
     password: initPasswordBuffer(),
     auth: AuthConnection(readFd: -1, writeFd: -1),
     signalFd: -1,
-    blankActive: opts.blank
+    blankActive: opts.blank,
   )
   result.matrixClockStart = getMonoTime()
   result.lastInputAt = result.matrixClockStart
@@ -1092,14 +1644,17 @@ proc connectAndDiscover(opts: Options): Lock =
   if result.xkbContext.isNil:
     fatal("failed to create xkb context")
   result.registry = wl_display_get_registry(result.display)
-  discard wl_registry_add_listener(result.registry, cast[pointer](addr registryListener), cast[pointer](result))
+  discard wl_registry_add_listener(
+    result.registry, cast[pointer](addr registryListener), cast[pointer](result)
+  )
   if wl_display_roundtrip(result.display) < 0:
     fatal("initial Wayland roundtrip failed")
 
 proc checkProtocols*(opts: Options) =
   initListeners()
   let lock = connectAndDiscover(opts)
-  defer: lock.deinit()
+  defer:
+    lock.deinit()
   lock.checkRequired()
   echo "lockme: required Wayland protocols are available"
 
@@ -1120,8 +1675,10 @@ proc applyProcessHardening(opts: Options) =
   # containers; the password buffer's own mlock is mandatory and handled
   # separately, so a failure here only weakens defense-in-depth.
   let mlockFlags =
-    if not opts.blank: MclCurrent
-    else: MclCurrent or MclFuture
+    if not opts.blank:
+      MclCurrent
+    else:
+      MclCurrent or MclFuture
   if mlockall(mlockFlags) != 0:
     if opts.logLevel == llDebug:
       stderr.writeLine("lockme: debug: " & mlockallFailureMessage(mlockFlags, errno))
@@ -1136,12 +1693,15 @@ proc runLock*(opts: Options) =
   applyProcessHardening(opts)
   initListeners()
   let lock = connectAndDiscover(opts)
-  defer: lock.deinit()
+  defer:
+    lock.deinit()
   lock.checkRequired()
   lock.auth = forkAuthChild(opts.logLevel == llDebug)
   lock.signalFd = makeSignalFd()
   if lock.signalFd < 0:
-    stderr.writeLine("lockme: warning: failed to create signal fd; SIGINT/SIGTERM may not clean up gracefully")
+    stderr.writeLine(
+      "lockme: warning: failed to create signal fd; SIGINT/SIGTERM may not clean up gracefully"
+    )
   applyParentNoNewPrivs()
   lock.createBuffers()
   if not lock.pixelManager.isNil:
@@ -1151,7 +1711,9 @@ proc runLock*(opts: Options) =
   lock.sessionLock = lockManagerLock(lock.lockManager)
   if lock.sessionLock.isNil:
     fatal("failed to create session lock")
-  discard ext_session_lock_v1_add_listener(lock.sessionLock, cast[pointer](addr sessionLockListener), cast[pointer](lock))
+  discard ext_session_lock_v1_add_listener(
+    lock.sessionLock, cast[pointer](addr sessionLockListener), cast[pointer](lock)
+  )
   lockManagerDestroy(lock.lockManager)
   lock.lockManager = nil
   lock.state = lsLocking
@@ -1162,7 +1724,8 @@ proc runLock*(opts: Options) =
   var pollfds: array[3, TPollfd]
   while lock.state != lsExiting:
     lock.flushAndPrepareRead()
-    pollfds[0] = TPollfd(fd: wl_display_get_fd(lock.display), events: POLLIN, revents: 0)
+    pollfds[0] =
+      TPollfd(fd: wl_display_get_fd(lock.display), events: POLLIN, revents: 0)
     pollfds[1] = TPollfd(fd: lock.auth.readFd, events: POLLIN, revents: 0)
     var pollLen = 2
     if lock.signalFd >= 0:
@@ -1171,12 +1734,14 @@ proc runLock*(opts: Options) =
 
     let pollStart = getMonoTime()
     let matrixVisible = lock.wantsMatrix()
-    var timeout = cint(matrixFrameTimeoutMs(
-      lock.matrixTicker,
-      matrixVisible,
-      lock.matrixNowMs(pollStart),
-      lock.opts.matrixFrameMs
-    ))
+    var timeout = cint(
+      matrixFrameTimeoutMs(
+        lock.matrixTicker,
+        matrixVisible,
+        lock.matrixNowMs(pollStart),
+        lock.opts.matrixFrameMs,
+      )
+    )
     if lock.failReturnPending:
       let failTimeout = failReturnTimeout(pollStart, lock.failReturnAt)
       timeout = combinePollTimeout(timeout, failTimeout)
@@ -1194,7 +1759,8 @@ proc runLock*(opts: Options) =
     if (pollfds[0].revents and POLLIN) != 0:
       if wl_display_read_events(lock.display) < 0:
         fatal("failed to read Wayland events")
-      while wl_display_dispatch_pending(lock.display) > 0: discard
+      while wl_display_dispatch_pending(lock.display) > 0:
+        discard
     else:
       wl_display_cancel_read(lock.display)
 
@@ -1210,14 +1776,17 @@ proc runLock*(opts: Options) =
       var ok = false
       if not readAuthResult(lock.auth, ok):
         fatal("failed to read auth result")
-      lock.logMessage(llDebug, "auth child result: " & (if ok: "success" else: "failure"))
+      lock.logMessage(
+        llDebug, "auth child result: " & (if ok: "success" else: "failure")
+      )
       if ok:
         sessionLockUnlockAndDestroy(lock.sessionLock)
         lock.sessionLock = nil
         lock.state = lsExiting
       else:
         lock.failReturnPending = true
-        lock.failReturnAt = getMonoTime() + initDuration(milliseconds = MatrixFailHoldMs)
+        lock.failReturnAt =
+          getMonoTime() + initDuration(milliseconds = MatrixFailHoldMs)
         lock.setColor(failState())
     elif (pollfds[1].revents and (POLLHUP or POLLERR or POLLNVAL)) != 0:
       fatal("auth child exited unexpectedly")
@@ -1240,7 +1809,7 @@ proc runLock*(opts: Options) =
       lock.matrixTicker,
       lock.wantsMatrix(),
       lock.matrixNowMs(matrixFrameNow),
-      lock.opts.matrixFrameMs
+      lock.opts.matrixFrameMs,
     ):
       for output in lock.outputs:
         output.matrixRain.advance()

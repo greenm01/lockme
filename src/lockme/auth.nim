@@ -9,20 +9,31 @@ type
     readFd*: cint
     writeFd*: cint
 
-  PamHandle {.importc: "pam_handle_t", header: "<security/pam_appl.h>", incompleteStruct.} = object
+  PamHandle {.
+    importc: "pam_handle_t", header: "<security/pam_appl.h>", incompleteStruct
+  .} = object
 
   PamMessage {.importc: "struct pam_message", header: "<security/pam_appl.h>", bycopy.} = object
     msgStyle {.importc: "msg_style".}: cint
     msg*: cstring
 
-  PamMessageConst {.importc: "const struct pam_message", header: "<security/pam_appl.h>", bycopy.} = object
+  PamMessageConst {.
+    importc: "const struct pam_message", header: "<security/pam_appl.h>", bycopy
+  .} = object
 
-  PamResponse {.importc: "struct pam_response", header: "<security/pam_appl.h>", bycopy.} = object
+  PamResponse {.
+    importc: "struct pam_response", header: "<security/pam_appl.h>", bycopy
+  .} = object
     resp*: cstring
     respRetcode {.importc: "resp_retcode".}: cint
 
   PamConv {.importc: "struct pam_conv", header: "<security/pam_appl.h>", bycopy.} = object
-    conv*: proc(numMsg: cint; msg: ptr ptr PamMessageConst; resp: ptr ptr PamResponse; appdata: pointer): cint {.cdecl.}
+    conv*: proc(
+      numMsg: cint,
+      msg: ptr ptr PamMessageConst,
+      resp: ptr ptr PamResponse,
+      appdata: pointer,
+    ): cint {.cdecl.}
     appdataPtr {.importc: "appdata_ptr".}: pointer
 
   Passwd {.importc: "struct passwd", header: "<pwd.h>", bycopy.} = object
@@ -37,29 +48,45 @@ const
   AuthInitFailedByte = uint8(ord('E'))
 
   PrSetDumpable = 4.cint
-  RlimitMemlockId = 8.cint  # Linux: RLIMIT_MEMLOCK
+  RlimitMemlockId = 8.cint # Linux: RLIMIT_MEMLOCK
 
-proc pam_start(serviceName, user: cstring; pamConv: ptr PamConv; pamh: ptr ptr PamHandle): cint
-  {.importc, header: "<security/pam_appl.h>".}
-proc pam_authenticate(pamh: ptr PamHandle; flags: cint): cint
-  {.importc, header: "<security/pam_appl.h>".}
-proc pam_setcred(pamh: ptr PamHandle; flags: cint): cint
-  {.importc, header: "<security/pam_appl.h>".}
-proc pam_end(pamh: ptr PamHandle; status: cint): cint
-  {.importc, header: "<security/pam_appl.h>".}
-proc pam_strerror(pamh: ptr PamHandle; errnum: cint): cstring
-  {.importc, header: "<security/pam_appl.h>".}
+proc pam_start(
+  serviceName, user: cstring, pamConv: ptr PamConv, pamh: ptr ptr PamHandle
+): cint {.importc, header: "<security/pam_appl.h>".}
+
+proc pam_authenticate(
+  pamh: ptr PamHandle, flags: cint
+): cint {.importc, header: "<security/pam_appl.h>".}
+
+proc pam_setcred(
+  pamh: ptr PamHandle, flags: cint
+): cint {.importc, header: "<security/pam_appl.h>".}
+
+proc pam_end(
+  pamh: ptr PamHandle, status: cint
+): cint {.importc, header: "<security/pam_appl.h>".}
+
+proc pam_strerror(
+  pamh: ptr PamHandle, errnum: cint
+): cstring {.importc, header: "<security/pam_appl.h>".}
 
 proc getpwuid(uid: Uid): ptr Passwd {.importc, header: "<pwd.h>".}
 proc calloc(count, size: csize_t): pointer {.importc, header: "<stdlib.h>".}
-proc strndup(s: pointer; n: csize_t): cstring {.importc, header: "<string.h>".}
+proc strndup(s: pointer, n: csize_t): cstring {.importc, header: "<string.h>".}
 proc strerror(errnum: cint): cstring {.importc, header: "<string.h>".}
-proc prctl(option: cint; arg2, arg3, arg4, arg5: culong): cint
-  {.importc, header: "<sys/prctl.h>", varargs.}
+proc prctl(
+  option: cint, arg2, arg3, arg4, arg5: culong
+): cint {.importc, header: "<sys/prctl.h>", varargs.}
+
 proc mlockall(flags: cint): cint {.importc, header: "<sys/mman.h>".}
-proc getrlimit(resource: cint; rlim: ptr RLimit): cint {.importc, header: "<sys/resource.h>".}
-proc close_range(first, last: cuint; flags: cuint): cint
-  {.importc, header: "<unistd.h>".}
+proc getrlimit(
+  resource: cint, rlim: ptr RLimit
+): cint {.importc, header: "<sys/resource.h>".}
+
+proc close_range(
+  first, last: cuint, flags: cuint
+): cint {.importc, header: "<unistd.h>".}
+
 proc sysconf(name: cint): clong {.importc, header: "<unistd.h>".}
 
 # Child-only globals. Allocated lazily inside the auth child after fork
@@ -67,9 +94,12 @@ proc sysconf(name: cint): clong {.importc, header: "<unistd.h>".}
 # space (and so the parent never carries the buffer's allocation).
 var childPassword: PasswordBuffer
 
-proc logPamStatus(debugAuth: bool; pamh: ptr PamHandle; op: string; status: cint) =
+proc logPamStatus(debugAuth: bool, pamh: ptr PamHandle, op: string, status: cint) =
   if debugAuth:
-    stderr.writeLine("lockme: debug: " & op & " status=" & $status & " (" & $pam_strerror(pamh, status) & ")")
+    stderr.writeLine(
+      "lockme: debug: " & op & " status=" & $status & " (" & $pam_strerror(pamh, status) &
+        ")"
+    )
 
 proc rlimitMemlockSummary(): string =
   var limit: RLimit
@@ -77,16 +107,16 @@ proc rlimitMemlockSummary(): string =
     return "unknown"
   "soft=" & $limit.rlim_cur & " hard=" & $limit.rlim_max & " bytes"
 
-proc logMlockallFailed(debugAuth: bool; flags: cint; err: cint) =
+proc logMlockallFailed(debugAuth: bool, flags: cint, err: cint) =
   if not debugAuth:
     return
   stderr.writeLine(
-    "lockme: debug: auth child mlockall(flags=" & $flags & ") failed: " &
-    $strerror(err) & " (RLIMIT_MEMLOCK " & rlimitMemlockSummary() &
-    "); PAM/libc password temporaries may be paged to swap, but the dedicated password buffer remains mlock'd"
+    "lockme: debug: auth child mlockall(flags=" & $flags & ") failed: " & $strerror(err) &
+      " (RLIMIT_MEMLOCK " & rlimitMemlockSummary() &
+      "); PAM/libc password temporaries may be paged to swap, but the dedicated password buffer remains mlock'd"
   )
 
-proc readExact(fd: cint; p: pointer; len: int): bool =
+proc readExact(fd: cint, p: pointer, len: int): bool =
   var offset = 0
   while offset < len:
     let rc = read(fd, cast[pointer](cast[uint](p) + uint(offset)), len - offset)
@@ -95,7 +125,7 @@ proc readExact(fd: cint; p: pointer; len: int): bool =
     offset += rc
   true
 
-proc writeExact(fd: cint; p: pointer; len: int): bool =
+proc writeExact(fd: cint, p: pointer, len: int): bool =
   var offset = 0
   while offset < len:
     let rc = write(fd, cast[pointer](cast[uint](p) + uint(offset)), len - offset)
@@ -104,25 +134,33 @@ proc writeExact(fd: cint; p: pointer; len: int): bool =
     offset += rc
   true
 
-proc readU32(fd: cint; value: var uint32): bool =
+proc readU32(fd: cint, value: var uint32): bool =
   var raw: array[4, uint8]
   if not readExact(fd, addr raw[0], raw.len):
     return false
-  value = uint32(raw[0]) or (uint32(raw[1]) shl 8) or
-    (uint32(raw[2]) shl 16) or (uint32(raw[3]) shl 24)
+  value =
+    uint32(raw[0]) or (uint32(raw[1]) shl 8) or (uint32(raw[2]) shl 16) or
+    (uint32(raw[3]) shl 24)
   true
 
-proc writeU32(fd: cint; value: uint32): bool =
+proc writeU32(fd: cint, value: uint32): bool =
   var raw = [
     uint8(value and 0xff'u32),
     uint8((value shr 8) and 0xff'u32),
     uint8((value shr 16) and 0xff'u32),
-    uint8((value shr 24) and 0xff'u32)
+    uint8((value shr 24) and 0xff'u32),
   ]
   writeExact(fd, addr raw[0], raw.len)
 
-proc converse(numMsg: cint; msg: ptr ptr PamMessageConst; resp: ptr ptr PamResponse; appdata: pointer): cint {.cdecl.} =
-  let responses = cast[ptr UncheckedArray[PamResponse]](calloc(csize_t(numMsg), csize_t(sizeof(PamResponse))))
+proc converse(
+    numMsg: cint,
+    msg: ptr ptr PamMessageConst,
+    resp: ptr ptr PamResponse,
+    appdata: pointer,
+): cint {.cdecl.} =
+  let responses = cast[ptr UncheckedArray[PamResponse]](calloc(
+    csize_t(numMsg), csize_t(sizeof(PamResponse))
+  ))
   if responses.isNil:
     return 5.cint
   resp[] = cast[ptr PamResponse](responses)
@@ -133,7 +171,11 @@ proc converse(numMsg: cint; msg: ptr ptr PamMessageConst; resp: ptr ptr PamRespo
     if not message.isNil and message.msgStyle == PamPromptEchoOff:
       # strndup copies exactly childPassword.len bytes and NUL-terminates,
       # so the buffer does not need to be NUL-terminated itself.
-      let src = if childPassword.len == 0: cast[pointer](addr responses[i]) else: childPassword.bytesPtr
+      let src =
+        if childPassword.len == 0:
+          cast[pointer](addr responses[i])
+        else:
+          childPassword.bytesPtr
       # If empty, pass a pointer to a zero-length region; strndup with n=0
       # returns a freshly allocated empty string.
       let n = csize_t(childPassword.len)
@@ -154,11 +196,15 @@ proc readPassword(conn: AuthConnection): bool =
     return true
   readExact(conn.readFd, childPassword.rawPtr, int(length))
 
-proc writeAuthResult(conn: AuthConnection; ok: bool): bool =
-  var b = if ok: uint8(1) else: uint8(0)
+proc writeAuthResult(conn: AuthConnection, ok: bool): bool =
+  var b =
+    if ok:
+      uint8(1)
+    else:
+      uint8(0)
   writeExact(conn.writeFd, addr b, 1)
 
-proc writeAuthStatus(conn: AuthConnection; status: uint8): bool =
+proc writeAuthStatus(conn: AuthConnection, status: uint8): bool =
   var b = status
   writeExact(conn.writeFd, addr b, 1)
 
@@ -178,8 +224,12 @@ proc closeInheritedFds(keep: openArray[cint]) =
     if close_range(first, last, 0) == 0:
       return
     # Fall back to a manual loop (e.g. on kernels < 5.9).
-    let openMax = sysconf(4.cint)  # _SC_OPEN_MAX
-    let upper = if last == high(cuint): cuint(if openMax > 0: openMax else: 4096) else: last
+    let openMax = sysconf(4.cint) # _SC_OPEN_MAX
+    let upper =
+      if last == high(cuint):
+        cuint(if openMax > 0: openMax else: 4096)
+      else:
+        last
     var fd = cint(first)
     while fd <= cint(upper):
       discard close(fd)
@@ -187,7 +237,8 @@ proc closeInheritedFds(keep: openArray[cint]) =
 
   # Sort kept fds so we can close the gaps between them.
   var kept = newSeq[cint](keep.len)
-  for i, v in keep: kept[i] = v
+  for i, v in keep:
+    kept[i] = v
   # simple insertion sort
   for i in 1 ..< kept.len:
     var j = i
@@ -204,7 +255,7 @@ proc closeInheritedFds(keep: openArray[cint]) =
     cursor = cuint(fd) + 1
   closeRange(cursor, high(cuint))
 
-proc authLoop(conn: AuthConnection; debugAuth: bool) {.noreturn.} =
+proc authLoop(conn: AuthConnection, debugAuth: bool) {.noreturn.} =
   # Block ptrace and /proc snooping by other same-UID processes.
   discard prctl(PrSetDumpable, 0.culong, 0.culong, 0.culong, 0.culong)
   # Parent mlockall state is not inherited across fork(2). Re-apply
@@ -258,8 +309,8 @@ proc authLoop(conn: AuthConnection; debugAuth: bool) {.noreturn.} =
         quit(1)
 
 proc forkAuthChild*(debugAuth = false): AuthConnection =
-  var parentToChild: array[0..1, cint]
-  var childToParent: array[0..1, cint]
+  var parentToChild: array[0 .. 1, cint]
+  var childToParent: array[0 .. 1, cint]
 
   if pipe(parentToChild) != 0 or pipe(childToParent) != 0:
     raise newException(OSError, "failed to create auth pipes")
@@ -286,7 +337,7 @@ proc forkAuthChild*(debugAuth = false): AuthConnection =
     if status != AuthReadyByte:
       raise newException(OSError, "auth child sent unexpected startup status")
 
-proc sendPassword*(conn: AuthConnection; data: pointer; length: int): bool =
+proc sendPassword*(conn: AuthConnection, data: pointer, length: int): bool =
   if length < 0 or length > SizeMax:
     return false
   if not writeU32(conn.writeFd, uint32(length)):
@@ -295,7 +346,7 @@ proc sendPassword*(conn: AuthConnection; data: pointer; length: int): bool =
     return true
   writeExact(conn.writeFd, data, length)
 
-proc readAuthResult*(conn: AuthConnection; ok: var bool): bool =
+proc readAuthResult*(conn: AuthConnection, ok: var bool): bool =
   var b: uint8
   if not readExact(conn.readFd, addr b, 1):
     return false

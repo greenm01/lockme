@@ -2,7 +2,7 @@ import std/unittest
 
 import lockme/[font64x128, matrix, matrix_render]
 
-proc glyphCell(atlas: MatrixGlyphAtlas; glyphIdx: int): seq[uint8] =
+proc glyphCell(atlas: MatrixGlyphAtlas, glyphIdx: int): seq[uint8] =
   result = newSeq[uint8](atlas.cellWidth * atlas.cellHeight)
   let cellX = glyphIdx * atlas.cellWidth
   for y in 0 ..< atlas.cellHeight:

@@ -13,27 +13,33 @@ import std/posix
 
 const
   SizeMax* = 1024
-  ScPageSize = 30.cint  # Linux: _SC_PAGESIZE
-  MadvDontdump = 16.cint  # Linux: MADV_DONTDUMP
+  ScPageSize = 30.cint # Linux: _SC_PAGESIZE
+  MadvDontdump = 16.cint # Linux: MADV_DONTDUMP
 
-proc posix_memalign(memptr: ptr pointer; alignment, size: csize_t): cint
-  {.importc, header: "<stdlib.h>".}
+proc posix_memalign(
+  memptr: ptr pointer, alignment, size: csize_t
+): cint {.importc, header: "<stdlib.h>".}
+
 proc c_free(p: pointer) {.importc: "free", header: "<stdlib.h>".}
-proc c_mlock(p: pointer; len: csize_t): cint
-  {.importc: "mlock", header: "<sys/mman.h>".}
-proc c_munlock(p: pointer; len: csize_t): cint
-  {.importc: "munlock", header: "<sys/mman.h>".}
-proc c_madvise(p: pointer; len: csize_t; advice: cint): cint
-  {.importc: "madvise", header: "<sys/mman.h>".}
-proc explicit_bzero(p: pointer; n: csize_t)
-  {.importc, header: "<string.h>".}
+proc c_mlock(
+  p: pointer, len: csize_t
+): cint {.importc: "mlock", header: "<sys/mman.h>".}
+
+proc c_munlock(
+  p: pointer, len: csize_t
+): cint {.importc: "munlock", header: "<sys/mman.h>".}
+
+proc c_madvise(
+  p: pointer, len: csize_t, advice: cint
+): cint {.importc: "madvise", header: "<sys/mman.h>".}
+
+proc explicit_bzero(p: pointer, n: csize_t) {.importc, header: "<string.h>".}
 proc sysconf(name: cint): clong {.importc, header: "<unistd.h>".}
 
-type
-  PasswordBuffer* = object
-    data: ptr UncheckedArray[byte]
-    cap: int
-    length: int
+type PasswordBuffer* = object
+  data: ptr UncheckedArray[byte]
+  cap: int
+  length: int
 
 proc pageSize(): int =
   let v = sysconf(ScPageSize)
@@ -73,18 +79,19 @@ proc initPasswordBuffer*(): PasswordBuffer =
         break dontdumpBlock
       if errno != EAGAIN:
         # Non-fatal: kernel may not support DONTDUMP; mlock still applied.
-        stderr.writeLine("lockme: warning: madvise(MADV_DONTDUMP) failed; password may be included in core dumps")
+        stderr.writeLine(
+          "lockme: warning: madvise(MADV_DONTDUMP) failed; password may be included in core dumps"
+        )
         break dontdumpBlock
       if attempts >= 10:
-        stderr.writeLine("lockme: warning: madvise(MADV_DONTDUMP) repeatedly returned EAGAIN")
+        stderr.writeLine(
+          "lockme: warning: madvise(MADV_DONTDUMP) repeatedly returned EAGAIN"
+        )
         break dontdumpBlock
       inc attempts
 
-  result = PasswordBuffer(
-    data: cast[ptr UncheckedArray[byte]](raw),
-    cap: cap,
-    length: 0
-  )
+  result =
+    PasswordBuffer(data: cast[ptr UncheckedArray[byte]](raw), cap: cap, length: 0)
 
 proc protectAfterFork*(p: var PasswordBuffer) =
   ## Re-apply mlock after fork(2) and refresh MADV_DONTDUMP for the child.
@@ -127,7 +134,7 @@ proc bytesPtr*(p: PasswordBuffer): pointer {.inline.} =
     return nil
   cast[pointer](p.data)
 
-proc appendUtf8*(p: var PasswordBuffer; s: openArray[byte]): bool =
+proc appendUtf8*(p: var PasswordBuffer, s: openArray[byte]): bool =
   if s.len == 0:
     return true
   if p.data.isNil:
@@ -138,7 +145,7 @@ proc appendUtf8*(p: var PasswordBuffer; s: openArray[byte]): bool =
   p.length += s.len
   true
 
-proc appendString*(p: var PasswordBuffer; s: string): bool =
+proc appendString*(p: var PasswordBuffer, s: string): bool =
   ## Convenience wrapper for tests and string sources. Caller is responsible
   ## for clearing the source `s` if it contained sensitive material.
   if s.len == 0:
@@ -151,7 +158,7 @@ proc appendString*(p: var PasswordBuffer; s: string): bool =
   p.length += s.len
   true
 
-proc setLength*(p: var PasswordBuffer; n: int): bool =
+proc setLength*(p: var PasswordBuffer, n: int): bool =
   ## Used by the auth child to size the buffer before reading exactly `n`
   ## bytes from the parent pipe. Caller must overwrite the [0, n) range.
   if p.data.isNil or n < 0 or n > SizeMax:

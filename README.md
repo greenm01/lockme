@@ -90,6 +90,21 @@ Release builds use checked-in Wayland protocol stubs, so `wayland-scanner`
 and `wayland-protocols` are not required unless you are refreshing those
 generated files.
 
+## Format
+
+Formatting uses `nph`:
+
+```sh
+nimble setupTools
+nimble fmt
+nimble fmtCheck
+```
+
+`nimble setupTools` installs the pinned formatter as a user-level Nimble tool.
+`nimble fmt` formats maintained Nim sources. `nimble fmtCheck` is the
+non-mutating check form for review or CI. The generated Matrix font source is
+left to `nimble regenFont`.
+
 ## Deploy
 
 ```sh
