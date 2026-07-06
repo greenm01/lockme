@@ -478,6 +478,13 @@ static bool make_current(struct lockme_matrix_gpu *gpu) {
 		set_error("eglMakeCurrent failed");
 		return false;
 	}
+	/*
+	 * A locker renders all outputs from one event loop. If one output is
+	 * attached through a KVM, a blocking swap on that output can stall the
+	 * still-connected monitors. Keep presentation non-throttling here; the
+	 * Nim event loop already controls frame pacing.
+	 */
+	(void)eglSwapInterval(g_display, 0);
 	return true;
 }
 
