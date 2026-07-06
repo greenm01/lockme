@@ -29,6 +29,7 @@ const
   WlSeatCapabilityPointer = 1'u32
   WlSeatCapabilityKeyboard = 2'u32
   MatrixFailHoldMs = 750
+  MatrixGpuRetryMs = 1000
 
   XkbKeymapFormatTextV1 = 1.cint
   XkbKeyReturn = 0xff0d'u32
@@ -266,6 +267,7 @@ type
     matrixRain: MatrixRain
     matrixGpu: MatrixGpuRenderer
     matrixGpuUnavailable: bool
+    matrixGpuRetryAt: MonoTime
     matrixCpuFallbackLogged: bool
     matrixBuffers: array[2, MatrixBuffer]
     matrixNextBuffer: int
@@ -796,6 +798,16 @@ proc destroyMatrixBuffers(output: Output, resetGpuUnavailable = true) =
   output.matrixNextBuffer = 0
   if resetGpuUnavailable:
     output.matrixGpuUnavailable = false
+    output.matrixGpuRetryAt = MonoTime()
+
+proc markMatrixGpuUnavailable(output: Output) =
+  output.matrixGpuUnavailable = true
+  output.matrixGpuRetryAt =
+    getMonoTime() + initDuration(milliseconds = MatrixGpuRetryMs)
+
+proc matrixGpuRetryDue(output: Output): bool =
+  output.matrixGpuUnavailable and output.matrixGpuRetryAt.ticks != 0 and
+    output.matrixGpuRetryAt <= getMonoTime()
 
 proc createMatrixGpu(output: Output): bool =
   let lock = output.lock
@@ -805,7 +817,10 @@ proc createMatrixGpu(output: Output): bool =
     output.logMatrixFailure("failed to initialize matrix renderer")
     return false
   if output.matrixGpuUnavailable:
-    return false
+    if not output.matrixGpuRetryDue():
+      return false
+    output.matrixGpuUnavailable = false
+    output.matrixGpuRetryAt = MonoTime()
   if output.matrixGpu.isNil:
     output.matrixGpu = initMatrixGpuRenderer(
       cast[pointer](lock.display),
@@ -816,12 +831,13 @@ proc createMatrixGpu(output: Output): bool =
     )
     if output.matrixGpu.isNil:
       output.logMatrixFailure("GPU renderer unavailable: " & matrixGpuLastError())
-      output.matrixGpuUnavailable = true
+      output.markMatrixGpuUnavailable()
       return false
   elif not output.matrixGpu.resize(int(output.width), int(output.height)):
     output.logMatrixFailure("GPU renderer resize failed: " & matrixGpuLastError())
     output.matrixGpu.close()
     output.matrixGpu = nil
+    output.markMatrixGpuUnavailable()
     return false
   true
 
@@ -959,6 +975,9 @@ proc matrixNowMs(lock: Lock, now: MonoTime): int64
 proc attachMatrixFrame(output: Output): bool =
   if not output.matrixSurfaceRenderable():
     return false
+  if output.matrixGpu.isNil and output.hasMatrixBuffers() and output.matrixGpuRetryDue():
+    output.logMatrixFailure("retrying GPU renderer after transient failure")
+    output.destroyMatrixBuffers()
   if output.matrixGpu.isNil and not output.hasMatrixBuffers():
     output.createMatrixShmBuffers()
   if not output.matrixGpu.isNil:
@@ -977,7 +996,7 @@ proc attachMatrixFrame(output: Output): bool =
     )
     output.matrixGpu.close()
     output.matrixGpu = nil
-    output.matrixGpuUnavailable = true
+    output.markMatrixGpuUnavailable()
     output.createMatrixShmBuffers(allowGpu = false)
     if not output.hasMatrixBuffers():
       return false
