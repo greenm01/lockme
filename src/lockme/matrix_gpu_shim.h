@@ -29,6 +29,7 @@ int32_t lockme_matrix_gpu_render(
 	float brightness_decay);
 
 void lockme_matrix_gpu_destroy(struct lockme_matrix_gpu *gpu);
+void lockme_matrix_gpu_shutdown(void);
 const char *lockme_matrix_gpu_last_error(void);
 
 #endif

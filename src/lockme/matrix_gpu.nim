@@ -42,6 +42,10 @@ proc gpuDestroy(
   handle: pointer
 ) {.importc: "lockme_matrix_gpu_destroy", header: "lockme/matrix_gpu_shim.h".}
 
+proc gpuShutdown() {.
+  importc: "lockme_matrix_gpu_shutdown", header: "lockme/matrix_gpu_shim.h"
+.}
+
 proc gpuLastError(): cstring {.
   importc: "lockme_matrix_gpu_last_error", header: "lockme/matrix_gpu_shim.h"
 .}
@@ -105,3 +109,6 @@ proc close*(renderer: MatrixGpuRenderer) =
   if not renderer.isNil:
     gpuDestroy(renderer.handle)
     renderer.handle = nil
+
+proc shutdownMatrixGpu*() =
+  gpuShutdown()

@@ -241,6 +241,10 @@ type
     lsLocked
     lsExiting
 
+  OutputLifecycle = enum
+    olActive
+    olRetired
+
   MatrixBuffer = object
     buffer: ptr WlBuffer
     data: ptr UncheckedArray[uint32]
@@ -265,6 +269,7 @@ type
     matrixCpuFallbackLogged: bool
     matrixBuffers: array[2, MatrixBuffer]
     matrixNextBuffer: int
+    lifecycle: OutputLifecycle
 
   Seat = ref object
     lock: Lock
@@ -288,6 +293,7 @@ type
     shm: ptr WlShm
     buffers: seq[ptr WlBuffer]
     outputs: seq[Output]
+    retiredOutputs: seq[Output]
     seats: seq[Seat]
     xkbContext: ptr XkbContext
     password: PasswordBuffer
@@ -707,8 +713,8 @@ proc logMatrixFailure(output: Output, message: string) =
     stderr.writeLine("lockme: warning: matrix output " & $output.name & ": " & message)
 
 proc matrixSurfaceRenderable(output: Output): bool =
-  output.configured and not output.surface.isNil and output.width > 0 and
-    output.height > 0
+  output.lifecycle == olActive and output.configured and not output.surface.isNil and
+    output.width > 0 and output.height > 0
 
 proc rgba16(value: uint32, shift: int): uint32 =
   let component = (value shr shift) and 0xff'u32
@@ -930,7 +936,8 @@ proc createMatrixShmBuffers(output: Output, allowGpu = true) =
     )
 
 proc attachBuffer(output: Output, buffer: ptr WlBuffer) =
-  if buffer.isNil or not output.configured or output.surface.isNil:
+  if buffer.isNil or output.lifecycle != olActive or not output.configured or
+      output.surface.isNil or output.viewport.isNil:
     return
   wlSurfaceAttach(output.surface, buffer, 0, 0)
   wlSurfaceDamageBuffer(output.surface, 0, 0, high(int32), high(int32))
@@ -1136,12 +1143,31 @@ proc destroyOutput(output: Output) =
   output.destroyMatrixBuffers()
   if not output.lockSurface.isNil:
     lockSurfaceDestroy(output.lockSurface)
+    output.lockSurface = nil
   if not output.viewport.isNil:
     viewportDestroy(output.viewport)
+    output.viewport = nil
   if not output.surface.isNil:
     wlSurfaceDestroy(output.surface)
+    output.surface = nil
   if not output.wlOutput.isNil:
     wlOutputRelease(output.wlOutput)
+    output.wlOutput = nil
+  output.configured = false
+  output.width = 0
+  output.height = 0
+
+proc retireOutput(lock: Lock, index: int) =
+  let output = lock.outputs[index]
+  output.lifecycle = olRetired
+  lock.logMessage(llInfo, "output " & $output.name & " removed; retiring lock surface")
+  output.destroyOutput()
+  lock.retiredOutputs.add(output)
+  lock.outputs.delete(index)
+  if lock.outputs.len == 0:
+    lock.logMessage(
+      llInfo, "all outputs removed while locked; waiting for KVM outputs to return"
+    )
 
 proc destroySeat(seat: Seat) =
   if not seat.xkbState.isNil:
@@ -1211,10 +1237,20 @@ proc registryGlobal(
   elif ifaceName == $ifaceNameWlOutput():
     if version < 3:
       fatal("wl_output version 3 is required")
-    let output =
-      Output(lock: lock, name: name, wlOutput: bindWlOutput(registry, name, 3))
+    let wasOutputless = lock.outputs.len == 0 and lock.state in {lsLocking, lsLocked}
+    let output = Output(
+      lock: lock,
+      name: name,
+      wlOutput: bindWlOutput(registry, name, 3),
+      lifecycle: olActive,
+    )
     lock.outputs.add(output)
+    lock.logMessage(llInfo, "output " & $name & " added")
     if lock.state in {lsLocking, lsLocked}:
+      if wasOutputless:
+        lock.logMessage(
+          llInfo, "outputs returned while locked; recreating lock surfaces"
+        )
       output.createOutputSurface()
   elif ifaceName == $ifaceNameWlSeat():
     if version < 5:
@@ -1239,8 +1275,7 @@ proc registryGlobalRemove(
   let lock = cast[Lock](data)
   for i, output in lock.outputs:
     if output.name == name:
-      output.destroyOutput()
-      lock.outputs.delete(i)
+      lock.retireOutput(i)
       return
   for i, seat in lock.seats:
     if seat.name == name:
@@ -1521,6 +1556,8 @@ proc lockSurfaceConfigure(
     data: pointer, surface: ptr ExtSessionLockSurface, serial, width, height: uint32
 ) {.cdecl.} =
   let output = cast[Output](data)
+  if output.lifecycle != olActive or output.lockSurface.isNil:
+    return
   output.configured = true
   output.width = int32(min(width, uint32(high(int32))))
   output.height = int32(min(height, uint32(high(int32))))
@@ -1587,6 +1624,9 @@ proc initListeners() =
 proc deinit(lock: Lock) =
   for output in lock.outputs:
     output.destroyOutput()
+  for output in lock.retiredOutputs:
+    output.destroyOutput()
+  shutdownMatrixGpu()
   for seat in lock.seats:
     seat.destroySeat()
   for buffer in lock.buffers:

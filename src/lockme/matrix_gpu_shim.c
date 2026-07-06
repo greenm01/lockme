@@ -868,6 +868,28 @@ int32_t lockme_matrix_gpu_render(
 	return 1;
 }
 
+static void shutdown_global_gpu_state(void) {
+	if (g_ref_count != 0 || g_display == EGL_NO_DISPLAY) {
+		return;
+	}
+	if (g_sokol_ready) {
+		destroy_global_resources();
+		sg_shutdown();
+		g_sokol_ready = false;
+	}
+	eglMakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	if (g_context != EGL_NO_CONTEXT) {
+		eglDestroyContext(g_display, g_context);
+		g_context = EGL_NO_CONTEXT;
+	}
+	eglTerminate(g_display);
+	g_display = EGL_NO_DISPLAY;
+	g_config = NULL;
+	g_atlas_width = 0;
+	g_atlas_height = 0;
+	g_atlas_glyph_count = 0;
+}
+
 void lockme_matrix_gpu_destroy(struct lockme_matrix_gpu *gpu) {
 	if (!gpu) {
 		return;
@@ -885,24 +907,10 @@ void lockme_matrix_gpu_destroy(struct lockme_matrix_gpu *gpu) {
 	if (g_ref_count > 0) {
 		g_ref_count--;
 	}
-	if (g_ref_count == 0 && g_display != EGL_NO_DISPLAY) {
-		if (g_sokol_ready) {
-			destroy_global_resources();
-			sg_shutdown();
-			g_sokol_ready = false;
-		}
-		eglMakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-		if (g_context != EGL_NO_CONTEXT) {
-			eglDestroyContext(g_display, g_context);
-			g_context = EGL_NO_CONTEXT;
-		}
-		eglTerminate(g_display);
-		g_display = EGL_NO_DISPLAY;
-		g_config = NULL;
-		g_atlas_width = 0;
-		g_atlas_height = 0;
-		g_atlas_glyph_count = 0;
-	}
+}
+
+void lockme_matrix_gpu_shutdown(void) {
+	shutdown_global_gpu_state();
 }
 
 const char *lockme_matrix_gpu_last_error(void) {
