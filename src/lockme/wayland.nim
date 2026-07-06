@@ -1,4 +1,4 @@
-import std/[monotimes, posix, times]
+import std/[monotimes, os, posix, times]
 
 import ./auth
 import ./cli
@@ -268,6 +268,7 @@ type
     matrixGpu: MatrixGpuRenderer
     matrixGpuUnavailable: bool
     matrixGpuRetryAt: MonoTime
+    matrixGpuLogged: bool
     matrixCpuFallbackLogged: bool
     matrixBuffers: array[2, MatrixBuffer]
     matrixNextBuffer: int
@@ -709,8 +710,31 @@ proc logMessage(lock: Lock, level: LogLevel, message: string) =
   if lock.logEnabled(level):
     stderr.writeLine("lockme: " & message)
 
+proc diagnosticLogPath(): string =
+  let stateHome =
+    if getEnv("XDG_STATE_HOME").len > 0:
+      getEnv("XDG_STATE_HOME")
+    else:
+      getEnv("HOME") / ".local" / "state"
+  stateHome / "lockme" / "lockme.log"
+
+proc logDiagnostic(message: string) =
+  let path = diagnosticLogPath()
+  try:
+    createDir(path.parentDir())
+    var file: File
+    if open(file, path, fmAppend):
+      file.writeLine($now() & " " & message)
+      file.close()
+  except CatchableError:
+    discard
+
+proc logDiagnostic(output: Output, message: string) =
+  logDiagnostic("output=" & $output.name & " " & message)
+
 proc logMatrixFailure(output: Output, message: string) =
   let lock = output.lock
+  output.logDiagnostic("matrix warning: " & message)
   if not lock.blankActive or lock.logEnabled(llWarning):
     stderr.writeLine("lockme: warning: matrix output " & $output.name & ": " & message)
 
@@ -776,6 +800,7 @@ proc ensureMatrixRenderer(lock: Lock): bool =
   if not lock.matrixRenderer.isNil:
     for output in lock.outputs:
       output.destroyMatrixBuffers()
+    shutdownMatrixGpu()
     lock.matrixRenderer.close()
     lock.matrixRenderer = nil
     lock.matrixAtlas = MatrixGlyphAtlas()
@@ -833,12 +858,20 @@ proc createMatrixGpu(output: Output): bool =
       output.logMatrixFailure("GPU renderer unavailable: " & matrixGpuLastError())
       output.markMatrixGpuUnavailable()
       return false
+    if not output.matrixGpuLogged:
+      output.logDiagnostic(
+        "renderer=gpu surface=" & $output.width & "x" & $output.height
+      )
+      output.matrixGpuLogged = true
   elif not output.matrixGpu.resize(int(output.width), int(output.height)):
     output.logMatrixFailure("GPU renderer resize failed: " & matrixGpuLastError())
     output.matrixGpu.close()
     output.matrixGpu = nil
     output.markMatrixGpuUnavailable()
     return false
+  elif not output.matrixGpuLogged:
+    output.logDiagnostic("renderer=gpu surface=" & $output.width & "x" & $output.height)
+    output.matrixGpuLogged = true
   true
 
 proc createMatrixShmBuffers(output: Output, allowGpu = true) =
