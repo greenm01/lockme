@@ -976,8 +976,7 @@ proc attachMatrixFrame(output: Output): bool =
   if not output.matrixSurfaceRenderable():
     return false
   if output.matrixGpu.isNil and output.hasMatrixBuffers() and output.matrixGpuRetryDue():
-    output.logMatrixFailure("retrying GPU renderer after transient failure")
-    output.destroyMatrixBuffers()
+    discard output.createMatrixGpu()
   if output.matrixGpu.isNil and not output.hasMatrixBuffers():
     output.createMatrixShmBuffers()
   if not output.matrixGpu.isNil:
