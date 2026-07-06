@@ -732,6 +732,11 @@ proc logDiagnostic(message: string) =
 proc logDiagnostic(output: Output, message: string) =
   logDiagnostic("output=" & $output.name & " " & message)
 
+proc logDiagnostic(lock: Lock, message: string) =
+  logDiagnostic(
+    "state=" & $lock.state & " outputs=" & $lock.outputs.len & " " & message
+  )
+
 proc logMatrixFailure(output: Output, message: string) =
   let lock = output.lock
   output.logDiagnostic("matrix warning: " & message)
@@ -1176,6 +1181,7 @@ proc drainSignalFd(lock: Lock): bool =
 
 proc createOutputSurface(output: Output) =
   let lock = output.lock
+  output.logDiagnostic("creating lock surface")
   output.surface = wlCreateSurface(lock.compositor)
   if output.surface.isNil:
     fatal("failed to create wl_surface")
@@ -1189,8 +1195,13 @@ proc createOutputSurface(output: Output) =
   output.viewport = viewporterGetViewport(lock.viewporter, output.surface)
   if output.viewport.isNil:
     fatal("failed to create viewport")
+  output.logDiagnostic("lock surface created")
 
 proc destroyOutput(output: Output) =
+  output.logDiagnostic(
+    "destroying output lifecycle=" & $output.lifecycle & " configured=" &
+      $output.configured & " size=" & $output.width & "x" & $output.height
+  )
   output.destroyMatrixBuffers()
   if not output.lockSurface.isNil:
     lockSurfaceDestroy(output.lockSurface)
@@ -1207,11 +1218,13 @@ proc destroyOutput(output: Output) =
   output.configured = false
   output.width = 0
   output.height = 0
+  output.logDiagnostic("output destroyed")
 
 proc retireOutput(lock: Lock, index: int) =
   let output = lock.outputs[index]
   output.lifecycle = olRetired
   lock.logMessage(llInfo, "output " & $output.name & " removed; retiring lock surface")
+  output.logDiagnostic("retiring output")
   output.destroyOutput()
   lock.retiredOutputs.add(output)
   lock.outputs.delete(index)
@@ -1219,6 +1232,7 @@ proc retireOutput(lock: Lock, index: int) =
     lock.logMessage(
       llInfo, "all outputs removed while locked; waiting for KVM outputs to return"
     )
+    lock.logDiagnostic("all outputs removed while locked")
 
 proc destroySeat(seat: Seat) =
   if not seat.xkbState.isNil:
@@ -1297,11 +1311,15 @@ proc registryGlobal(
     )
     lock.outputs.add(output)
     lock.logMessage(llInfo, "output " & $name & " added")
+    output.logDiagnostic(
+      "output added version=" & $version & " lock-state=" & $lock.state
+    )
     if lock.state in {lsLocking, lsLocked}:
       if wasOutputless:
         lock.logMessage(
           llInfo, "outputs returned while locked; recreating lock surfaces"
         )
+        lock.logDiagnostic("outputs returned while locked")
       output.createOutputSurface()
   elif ifaceName == $ifaceNameWlSeat():
     if version < 5:
@@ -1579,6 +1597,7 @@ proc redirectStdioToDevNull() =
 proc sessionLocked(data: pointer, sessionLock: ptr ExtSessionLock) {.cdecl.} =
   let lock = cast[Lock](data)
   lock.state = lsLocked
+  lock.logDiagnostic("session locked")
   if lock.opts.hasReadyFd:
     discard write(lock.opts.readyFd.cint, "\n".cstring, 1)
     discard close(lock.opts.readyFd.cint)
@@ -1602,16 +1621,25 @@ proc sessionFinished(data: pointer, sessionLock: ptr ExtSessionLock) {.cdecl.} =
   if lock.state == lsLocking:
     fatal("compositor denied session lock; another locker may already be running")
   lock.state = lsExiting
+  lock.logDiagnostic("session finished")
 
 proc lockSurfaceConfigure(
     data: pointer, surface: ptr ExtSessionLockSurface, serial, width, height: uint32
 ) {.cdecl.} =
   let output = cast[Output](data)
   if output.lifecycle != olActive or output.lockSurface.isNil:
+    output.logDiagnostic(
+      "ignored configure lifecycle=" & $output.lifecycle & " has-lock-surface=" &
+        $(not output.lockSurface.isNil) & " serial=" & $serial & " size=" & $width & "x" &
+        $height
+    )
     return
   output.configured = true
   output.width = int32(min(width, uint32(high(int32))))
   output.height = int32(min(height, uint32(high(int32))))
+  output.logDiagnostic(
+    "configured serial=" & $serial & " size=" & $width & "x" & $height
+  )
   lockSurfaceAckConfigure(surface, serial)
   output.createMatrixShmBuffers()
   output.lock.presentAll()
