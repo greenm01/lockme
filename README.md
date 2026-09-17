@@ -156,7 +156,7 @@ nimble regenProtocols
 Refreshing protocols requires `wayland-scanner`. The task regenerates C/H
 from the vendored XML only; update the XML from `wayland-protocols` first
 when intentionally moving to a newer protocol revision. Commit the XML and
-generated C/H changes together.
+generated C/H changes together. Set `WAYLAND_SCANNER=/path/to/wayland-scanner` to use a non-default scanner.
 
 ## Run
 
